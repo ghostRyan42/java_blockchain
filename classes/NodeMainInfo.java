@@ -14,7 +14,7 @@ public class NodeMainInfo implements Serializable {
     public static int compteur=0;
     private transient ObjectOutputStream outputStream;
     // public transient ObjectOutputStream out = null;
-    // public transient ObjectInputStream in = null;
+    private transient ObjectInputStream inputStream;
 
     // Constructeur
     public NodeMainInfo(String ipAddress, int port, PublicKey walletPublicKey) {
@@ -58,6 +58,14 @@ public class NodeMainInfo implements Serializable {
 
     public ObjectOutputStream getOutputStream() {
         return this.outputStream;
+    }
+
+    public void setIn(ObjectInputStream in) {
+        this.inputStream = in;
+    }
+
+    public ObjectInputStream getInputStream() {
+        return this.inputStream;
     }
 
     @Override

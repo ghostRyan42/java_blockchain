@@ -127,6 +127,22 @@ public class NodeServer {
         }
     }
 
+    public void notifyPeers(NodeMainInfo newPeerInfo) {
+        for (NodeMainInfo peer : peers) {
+            // Vérifier que le peer n'est pas le nouveau nœud connecté
+            if (!peer.equals(newPeerInfo)) {
+                try (Socket socket = new Socket(peer.getIpAddress(), peer.getPort())) {
+                    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                    out.writeObject(newPeerInfo); // Envoyer les informations du nouveau nœud
+                    out.flush();
+                    System.out.println(nodeId + ": Notifié le pair " + peer.getPort() + " du nouveau nœud.");
+                } catch (IOException e) {
+                    System.out.println(nodeId + ": Échec de notification du pair " + peer.getPort());
+                }
+            }
+        }
+    }
+
     private static class ClientHandler implements Runnable {
         private Socket clientSocket;
         private NodeServer mainNode;
@@ -143,18 +159,20 @@ public class NodeServer {
         }
         
         
-        private void handleMessage(Object message) {
+        private void handleMessage(Object message, ObjectInputStream in, ObjectOutputStream out) {
             try {
                 if (message instanceof Transaction) {
                     Transaction transaction = (Transaction) message;
-                    System.out.println("xxxxxxxxxxxxx mywallet xxxxxxxxxxxxxxxxxx");
-                    System.out.println(mainNode.myWallet.getPublicKey());
-                    System.out.println("xxxxxxxxxxxxxx trans wallet xxxxxxxxxxxxxxxxx");
-                    System.out.println(transaction.getRecipient());
+                    System.out.println(transaction.getRecipient().equals(mainNode.myWallet.getPublicKey()));
+                    // System.out.println("xxxxxxxxxxxxxx trans wallet xxxxxxxxxxxxxxxxx");
+                    // System.out.println(transaction.getRecipient());
 
-                    if(transaction.getRecipient()==mainNode.myWallet.getPublicKey()){
-                        System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+
+                    if(transaction.getRecipient().equals(mainNode.myWallet.getPublicKey())){
+                        System.out.println("xxxxxxxxxxxxx mywallet xxxxxxxxxxxxxxxxxx");
+                        System.err.println(mainNode.myWallet.getBalance());
                         mainNode.myWallet.increaseBalance(transaction.getAmount());
+                        System.err.println(mainNode.myWallet.getBalance());
                     }
                     System.out.println(this.mainNode.nodeId + ": Transaction reçue - " + transaction);
     
@@ -192,7 +210,9 @@ public class NodeServer {
                 }else if (message instanceof NodeMainInfo) {
                     // Recevoir et stocker les informations du nœud
                     NodeMainInfo peerInfo = (NodeMainInfo) message;
-                    System.out.println("Informations reçues du nœud : " + peerInfo);
+                    peerInfo.setIn(in);
+                    peerInfo.setOut(out);
+                    System.out.println("Informations reçues du nœud : " + peerInfo.toString());
                     // Vous pouvez ajouter cette information dans la liste de vos pairs (peers)
                     if (!mainNode.peers.contains(peerInfo)) {
                         mainNode.peers.add(peerInfo);
@@ -228,13 +248,13 @@ public class NodeServer {
     
                         // Gérer le message
                         System.out.println(message);
-                        handleMessage(message);
+                        handleMessage(message, in, out);
     
                         // Réponse au client
-                        out.writeObject("Message traité avec succès.");
+                        // out.writeObject(new Message("transaction reçu avec succès", "success"));
                     } catch (ClassNotFoundException e) {
                         System.out.println("Objet inconnu reçu : " + e.getMessage());
-                        out.writeObject("Erreur : format de message non reconnu.");
+                        out.writeObject(new Message("format de message non reconnu", "error"));
                     }
                 }
             } catch (IOException e) {

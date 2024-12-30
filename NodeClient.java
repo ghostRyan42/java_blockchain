@@ -75,6 +75,7 @@ public class NodeClient {
                 
                 // Ajouter le serveur à la liste des pairs
                 serverInfo.setOut(out);
+                serverInfo.setIn(in);
 
                 peers.add(serverInfo);
             }
@@ -91,21 +92,23 @@ public class NodeClient {
         }
     }
 
-    private void broadcastTransaction(Transaction transaction) {
+    private void broadcastTransaction(Transaction transaction) throws ClassNotFoundException {
         System.out.println("debut du broadcast...");
-        // for (NodeMainInfo peer : peers) {
-        //     try (Socket socket = new Socket(peer.getIpAddress(),peer.getPort())) {
-        //         ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-        //         out.writeObject(transaction);
-        //     } catch (IOException e) {
-        //         System.out.println(nodeId + ": Échec de la diffusion de la transaction au pair " + peer.getPort());
-        //     }
-        // }
         for (NodeMainInfo peer : peers) {
             try {
                 if (peer.getOutputStream() != null) {
                     peer.getOutputStream().writeObject(transaction);
                     peer.getOutputStream().flush();
+
+                    // Object receivedData = peer.getInputStream().readObject();
+                    // if(receivedData instanceof Message){
+                    //     Message message = (Message) receivedData;
+                    //     if(message.getCode().equals("success")){
+                    //         System.out.println("Transaction envoyée avec succès au pair : " + peer.getPort());
+                    //     }else{
+                    //         System.out.println("Échec de la transaction au pair : " + peer.getPort());
+                    //     }
+                    // }
                 } else {
                     System.out.println("Flux non disponible pour le pair : " + peer.getPort());
                 }

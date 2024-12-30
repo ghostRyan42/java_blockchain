@@ -62,4 +62,9 @@ public class Block implements Serializable {
     public String getPreviousHash() {
         return previousHash;
     }
+
+    @Override
+    public String toString() {
+        return "Block [index=" + index + ", timestamp=" + timestamp + ", transactions=" + transactions + ", previousHash=" + previousHash + ", hash=" + hash + ", nonce=" + nonce + "]";
+    }
 }

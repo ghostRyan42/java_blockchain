@@ -69,4 +69,8 @@ public class Transaction implements Serializable {
     public long getTimestamp() {
         return timestamp;
     }
+    @Override
+    public String toString() {
+        return "Transaction [transactionId=" + transactionId + ", sender=" + sender + ", recipient=" + recipient + ", amount=" + amount + ", transactionFee=" + transactionFee + ", timestamp=" + timestamp + "]";
+    }
 }
