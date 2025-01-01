@@ -72,12 +72,25 @@ public class NodeServer {
     }
 
     private void broadcastTransaction(Transaction transaction) {
+        // for (NodeMainInfo peer : peers) {
+        //     try (Socket socket = new Socket(peer.getIpAddress(),peer.getPort())) {
+        //         ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+        //         out.writeObject(transaction);
+        //     } catch (IOException e) {
+        //         System.out.println(nodeId + ": Échec de la diffusion de la transaction au pair " + peer.getPort());
+        //     }
+        // }
         for (NodeMainInfo peer : peers) {
-            try (Socket socket = new Socket(peer.getIpAddress(),peer.getPort())) {
-                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                out.writeObject(transaction);
+            try {
+                if (peer.getOutputStream() != null) {
+                    peer.getOutputStream().writeObject(transaction);
+                    peer.getOutputStream().flush();
+
+                } else {
+                    System.out.println("Flux non disponible pour le pair : " + peer.getPort());
+                }
             } catch (IOException e) {
-                System.out.println(nodeId + ": Échec de la diffusion de la transaction au pair " + peer.getPort());
+                System.out.println(nodeId + ": Échec de la diffusion de la transaction au pair " + peer.getPort() + " : " + e.getMessage());
             }
         }
     }
@@ -131,10 +144,11 @@ public class NodeServer {
         for (NodeMainInfo peer : peers) {
             // Vérifier que le peer n'est pas le nouveau nœud connecté
             if (!peer.equals(newPeerInfo)) {
-                try (Socket socket = new Socket(peer.getIpAddress(), peer.getPort())) {
-                    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                    out.writeObject(newPeerInfo); // Envoyer les informations du nouveau nœud
-                    out.flush();
+                try{ 
+                    if(peer.getOutputStream() != null){
+                        peer.getOutputStream().writeObject(newPeerInfo);
+                        peer.getOutputStream().flush();
+                    }
                     System.out.println(nodeId + ": Notifié le pair " + peer.getPort() + " du nouveau nœud.");
                 } catch (IOException e) {
                     System.out.println(nodeId + ": Échec de notification du pair " + peer.getPort());
@@ -216,8 +230,10 @@ public class NodeServer {
                     // Vous pouvez ajouter cette information dans la liste de vos pairs (peers)
                     if (!mainNode.peers.contains(peerInfo)) {
                         mainNode.peers.add(peerInfo);
+                        mainNode.notifyPeers(peerInfo);
                         System.out.println("Pair ajouté à la liste des pairs.");
                     }
+                    
                 }
                  else {
                     System.out.println("Commande non reconnue : " + message);
@@ -272,10 +288,9 @@ public class NodeServer {
 
  
     public static void main(String[] args) throws NoSuchAlgorithmException {
-
-        NodeServer node1 = new NodeServer("node1", 8080);
-        node1.setWalletAmount(200);
-        Blockchain.initialize();
-        node1.start();
+            NodeServer node1 = new NodeServer("node1", 8080);
+            node1.setWalletAmount(200);
+            Blockchain.initialize();
+            node1.start();
         }
 }

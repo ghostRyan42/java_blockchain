@@ -8,7 +8,7 @@ import java.util.List;
 
 
 
-public class NodeClient {
+public class NodeClient3 {
     private int port;
     private String nodeId;
     private InetAddress nodeAdressIp;
@@ -17,7 +17,7 @@ public class NodeClient {
     private List<NodeMainInfo> peers = new ArrayList<>();
     private List<Transaction> pendingTransactions = new ArrayList<>();
 
-    public NodeClient(String nodeId,int port, InetAddress adressIp) throws NoSuchAlgorithmException {
+    public NodeClient3(String nodeId,int port, InetAddress adressIp) throws NoSuchAlgorithmException {
         this.port = port;
         this.nodeId = nodeId;
         this.nodeAdressIp = adressIp;
@@ -38,7 +38,7 @@ public class NodeClient {
     // Démarrer le serveur pour écouter les connexions entrantes
     public void start() throws NoSuchAlgorithmException, ClassNotFoundException {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("NodeClient en écoute sur le port : " + port);
+            System.out.println("NodeClient3 en écoute sur le port : " + port);
 
             while (true) {
                 // Accepter une connexion client
@@ -185,11 +185,11 @@ public class NodeClient {
 
     private static class ClientHandler implements Runnable {
         private Socket clientSocket;
-        private NodeClient mainNode;
+        private NodeClient3 mainNode;
         private ObjectInputStream in;
         private ObjectOutputStream out;
     
-        public ClientHandler(Socket socket,ObjectOutputStream out , ObjectInputStream in, NodeClient node) {
+        public ClientHandler(Socket socket,ObjectOutputStream out , ObjectInputStream in, NodeClient3 node) {
             this.clientSocket = socket;
             this.mainNode = node;
             this.out=out;
@@ -345,7 +345,7 @@ public class NodeClient {
  
     public static void main(String[] args) throws NoSuchAlgorithmException {
         // Créer le premier nœud (node1) et le démarrer dans un thread séparé
-        NodeClient node1 = new NodeClient("node1", 8081, null);
+        NodeClient3 node1 = new NodeClient3("node1", 8082, null);
         node1.setWalletAmount(100);
         new Thread(() -> {
             try {
