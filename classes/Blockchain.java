@@ -55,6 +55,8 @@ public class Blockchain {
             System.out.println("Erreur : Le hash précédent ne correspond pas.");
             return false;
         }
+        System.err.println("\n"+newBlock.getHash());
+        System.err.println(newBlock.calculateHash()+"\n");
     
         // Vérifier que le hash du bloc est valide
         if (!newBlock.getHash().equals(newBlock.calculateHash())) {

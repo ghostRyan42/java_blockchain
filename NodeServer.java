@@ -111,7 +111,7 @@ public class NodeServer {
 
     private void mineNewBlock() throws Exception {
         Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
-        Block newBlock = new Block(Blockchain.blockchain.size()+1,lastBlock.getHash());
+        Block newBlock = new Block(Blockchain.blockchain.size(),lastBlock.getHash());
         
         // Ajouter les transactions en attente au nouveau bloc
         for (Transaction tx : pendingTransactions) {
@@ -194,12 +194,13 @@ public class NodeServer {
                         this.mainNode.pendingTransactions.add(transaction);
                         if(this.mainNode.pendingTransactions.size()==3){
                             Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
-                            Block newBlock = new Block(Blockchain.blockchain.size()+1,lastBlock.getHash());
+                            Block newBlock = new Block(Blockchain.blockchain.size(),lastBlock.getHash());
                             
                             // Ajouter les transactions en attente au nouveau bloc
                             for (Transaction tx : mainNode.pendingTransactions) {
                                 newBlock.addTransaction(tx);
                             }
+                            newBlock.calculateHash();
 
                             // newBlock.mineBlock(4);
                             if(Blockchain.addBlock(newBlock)){

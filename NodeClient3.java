@@ -12,66 +12,55 @@ public class NodeClient3 {
     private int port;
     private String nodeId;
     private InetAddress nodeAdressIp;
-    // private Blockchain blockchain;
     private Wallet myWallet;
     private List<NodeMainInfo> peers = new ArrayList<>();
     private List<Transaction> pendingTransactions = new ArrayList<>();
 
-    public NodeClient3(String nodeId,int port, InetAddress adressIp) throws NoSuchAlgorithmException {
+    public NodeClient3(String nodeId, int port, InetAddress adressIp) throws NoSuchAlgorithmException {
         this.port = port;
         this.nodeId = nodeId;
         this.nodeAdressIp = adressIp;
-        // if(Blockchain.blockchain.isEmpty()){
-        //     createGenesisBlock();
-        // }
         this.myWallet = new Wallet(0);
-        // blockchain = new Blockchain();
     }
 
-    public void setWalletAmount(double balance){
+    public void setWalletAmount(double balance) {
         myWallet.setBalance(balance);
     }
-    public int getPort(){
+
+    public int getPort() {
         return this.port;
     }
 
-    // Démarrer le serveur pour écouter les connexions entrantes
     public void start() throws NoSuchAlgorithmException, ClassNotFoundException {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("NodeClient3 en écoute sur le port : " + port);
+            log("NodeClient3 en écoute sur le port : " + port);
 
             while (true) {
-                // Accepter une connexion client
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Connexion acceptée : " + clientSocket.getInetAddress());
+                log("Connexion acceptée depuis : " + clientSocket.getInetAddress());
 
                 ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 
                 Object receivedData = in.readObject();
-
                 if (receivedData instanceof NodeMainInfo) {
                     NodeMainInfo serverInfo = (NodeMainInfo) receivedData;
-                    System.out.println("Informations reçues du client : " + serverInfo);
-                    
-                    // Ajouter le serveur à la liste des pairs
+                    log("Informations reçues du client : " + serverInfo);
                     serverInfo.setOut(out);
                     serverInfo.setIn(in);
-
                     peers.add(serverInfo);
                 }
 
-                // Traiter la connexion dans un thread dédié
-                new Thread(new ClientHandler(clientSocket,out,in,this)).start();
+                new Thread(new ClientHandler(clientSocket, out, in, this)).start();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logError("Erreur lors de l'écoute des connexions entrantes", e);
         }
     }
 
     public void connectToPeer(String host, int peerPort) throws NoSuchAlgorithmException, ClassNotFoundException {
         try {
-            System.out.println("connection au noeud server avec succès ...");
+            log("Connexion au noeud serveur en cours...");
             Socket socket = new Socket(host, peerPort);
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
@@ -80,19 +69,15 @@ public class NodeClient3 {
 
             if (receivedData instanceof List) {
                 Blockchain.blockchain = (List<Block>) receivedData;
-                System.out.println("Blockchain reçue : Taille = " + Blockchain.blockchain.size());
+                log("Blockchain reçue : Taille = " + Blockchain.blockchain.size());
             }
 
             receivedData = in.readObject();
-
             if (receivedData instanceof NodeMainInfo) {
                 NodeMainInfo serverInfo = (NodeMainInfo) receivedData;
-                System.out.println("Informations reçues du serveur : " + serverInfo);
-                
-                // Ajouter le serveur à la liste des pairs
+                log("Informations reçues du serveur : " + serverInfo);
                 serverInfo.setOut(out);
                 serverInfo.setIn(in);
-
                 peers.add(serverInfo);
             }
 
@@ -100,89 +85,91 @@ public class NodeClient3 {
             out.writeObject(myInfo);
             out.flush();
 
-            System.out.println(nodeId + ": Connecté au pair sur le port " + peerPort);
-            new Thread(new ClientHandler(socket,out,in,this)).start();
+            log(nodeId + ": Connecté au pair sur le port " + peerPort);
+            new Thread(new ClientHandler(socket, out, in, this)).start();
 
         } catch (IOException e) {
-            System.out.println(nodeId + ": Impossible de se connecter au pair sur le port " + peerPort + " : " + e.getMessage());
+            logError(nodeId + ": Impossible de se connecter au pair sur le port " + peerPort, e);
         }
     }
 
     private void broadcastTransaction(Transaction transaction) throws ClassNotFoundException {
-        System.out.println("debut du broadcast...");
+        log("Début de la diffusion de la transaction...");
         for (NodeMainInfo peer : peers) {
             try {
                 if (peer.getOutputStream() != null) {
                     peer.getOutputStream().writeObject(transaction);
                     peer.getOutputStream().flush();
-
-                    // Object receivedData = peer.getInputStream().readObject();
-                    // if(receivedData instanceof Message){
-                    //     Message message = (Message) receivedData;
-                    //     if(message.getCode().equals("success")){
-                    //         System.out.println("Transaction envoyée avec succès au pair : " + peer.getPort());
-                    //     }else{
-                    //         System.out.println("Échec de la transaction au pair : " + peer.getPort());
-                    //     }
-                    // }
+                    log("Transaction envoyée avec succès au pair : " + peer.getPort());
                 } else {
-                    System.out.println("Flux non disponible pour le pair : " + peer.getPort());
+                    logWarning("Flux non disponible pour le pair : " + peer.getPort());
                 }
             } catch (IOException e) {
-                System.out.println(nodeId + ": Échec de la diffusion de la transaction au pair " + peer.getPort() + " : " + e.getMessage());
+                logError(nodeId + ": Échec de la diffusion de la transaction au pair " + peer.getPort(), e);
             }
         }
-        
     }
 
-    private void createTransaction(NodeMainInfo destNode, double amount, double fee) throws Exception{
-        Transaction trans= this.myWallet.createTransaction(destNode.getWalletPublicKey(), amount, fee);
-        System.out.println("transaction créé avec succès");
-        if(trans != null){
+    private void createTransaction(NodeMainInfo destNode, double amount, double fee) throws Exception {
+        Transaction trans = this.myWallet.createTransaction(destNode.getWalletPublicKey(), amount, fee);
+        if (trans != null) {
+            log("Transaction créée avec succès.");
             this.pendingTransactions.add(trans);
             broadcastTransaction(trans);
 
             if (pendingTransactions.size() >= 3) {
                 mineNewBlock();
             }
-        }else{
-            System.out.println(nodeId + ": Échec de la creation de la transaction ");
+        } else {
+            logWarning(nodeId + ": Échec de la création de la transaction.");
         }
     }
 
     private void mineNewBlock() throws Exception {
         Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
-        Block newBlock = new Block(Blockchain.blockchain.size()+1,lastBlock.getHash());
-        
-        // Ajouter les transactions en attente au nouveau bloc
+        Block newBlock = new Block(Blockchain.blockchain.size() + 1, lastBlock.getHash());
+
         for (Transaction tx : pendingTransactions) {
             newBlock.addTransaction(tx);
         }
 
-        // newBlock.mineBlock(4);
-        if(Blockchain.addBlock(newBlock)){
-            System.out.println(nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
+        if (Blockchain.addBlock(newBlock)) {
+            log(nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
             pendingTransactions.clear();
+            broadcastBlock(newBlock);
+        } else {
+            logWarning(nodeId + ": Échec du minage du nouveau bloc.");
         }
-        // blockchain.add(newBlock);
-
-        // Diffuser le nouveau bloc
-        broadcastBlock(newBlock);
     }
 
     private void broadcastBlock(Block block) {
-        for (NodeMainInfo peer : peers ) {
-            try{
+        log("Diffusion du bloc miné en cours...");
+        for (NodeMainInfo peer : peers) {
+            try {
                 if (peer.getOutputStream() != null) {
                     peer.getOutputStream().writeObject(block);
-                    peer.getOutputStream().flush(); 
+                    peer.getOutputStream().flush();
+                    log("Bloc diffusé avec succès au pair : " + peer.getPort());
                 }
             } catch (IOException e) {
-                System.out.println(nodeId + ": Échec de la diffusion du bloc au pair " + peer.getPort());
+                logError(nodeId + ": Échec de la diffusion du bloc au pair " + peer.getPort(), e);
             }
         }
     }
 
+    private void log(String message) {
+        System.out.println("[INFO] " + message);
+    }
+
+    private void logWarning(String message) {
+        System.out.println("[WARNING] " + message);
+    }
+
+    private void logError(String message, Exception e) {
+        System.err.println("[ERROR] " + message);
+        e.printStackTrace();
+    }
+    
     private static class ClientHandler implements Runnable {
         private Socket clientSocket;
         private NodeClient3 mainNode;
@@ -229,8 +216,9 @@ public class NodeClient3 {
                                 mainNode.pendingTransactions.clear();
                             }
 
+                        }else{
+                            System.out.println(this.mainNode.nodeId + ": Transaction ajoutée au pool.");
                         }
-                        System.out.println(this.mainNode.nodeId + ": Transaction ajoutée au pool.");
                     }
                 } else if (message instanceof Block) {
                     Block block = (Block) message;
@@ -346,7 +334,7 @@ public class NodeClient3 {
     public static void main(String[] args) throws NoSuchAlgorithmException {
         // Créer le premier nœud (node1) et le démarrer dans un thread séparé
         NodeClient3 node1 = new NodeClient3("node1", 8082, null);
-        node1.setWalletAmount(100);
+        node1.setWalletAmount(1000);
         new Thread(() -> {
             try {
                 node1.start();
@@ -366,6 +354,8 @@ public class NodeClient3 {
 
         try {
             node1.createTransaction(node1.peers.get(0), 20.0, 0.1);
+            node1.createTransaction(node1.peers.get(1), 50.0, 0.1);
+            node1.createTransaction(node1.peers.get(0), 150.0, 0.1);
         } catch (Exception e) {
             System.out.println("Erreur lors de la création de la transaction : " + e.getMessage());
         }

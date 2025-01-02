@@ -22,7 +22,9 @@ public class Block implements Serializable {
     // Calculer le hash du bloc
     public String calculateHash() {
         String dataToHash = index + Long.toString(timestamp) + transactions.toString() + previousHash + nonce;
-        return SignatureUtil.applySha256(dataToHash);
+        String _hash = SignatureUtil.applySha256(dataToHash);
+        this.hash=_hash;
+        return hash;
     }
     public int getindex(){
         return this.index;
