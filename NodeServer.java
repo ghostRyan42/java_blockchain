@@ -100,7 +100,7 @@ public class NodeServer {
         if(trans != null){
             this.pendingTransactions.add(trans);
             broadcastTransaction(trans);
-
+            Thread.sleep((long) (500 + Math.random() * 1500));
             if (pendingTransactions.size() >= 3) {
                 mineNewBlock();
             }
@@ -118,6 +118,8 @@ public class NodeServer {
             newBlock.addTransaction(tx);
         }
 
+        newBlock.calculateHash();
+
         // newBlock.mineBlock(4);
         if(Blockchain.addBlock(newBlock)){
             System.out.println(nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
@@ -130,12 +132,16 @@ public class NodeServer {
     }
 
     private void broadcastBlock(Block block) {
-        for (NodeMainInfo peer : peers ) {
-            try (Socket socket = new Socket(peer.getIpAddress(),peer.getPort())) {
-                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                out.writeObject(block);
+        System.out.println("Diffusion du bloc miné en cours...");
+        for (NodeMainInfo peer : peers) {
+            try {
+                if (peer.getOutputStream() != null) {
+                    peer.getOutputStream().writeObject(block);
+                    peer.getOutputStream().flush();
+                    System.out.println("Bloc diffusé avec succès au pair : " + peer.getPort());
+                }
             } catch (IOException e) {
-                System.out.println(nodeId + ": Échec de la diffusion du bloc au pair " + peer.getPort());
+                System.out.println(nodeId + ": Échec de la diffusion du bloc au pair " + peer.getPort() + " \n " + e);
             }
         }
     }
@@ -192,6 +198,7 @@ public class NodeServer {
     
                     if (!this.mainNode.pendingTransactions.contains(transaction)) {
                         this.mainNode.pendingTransactions.add(transaction);
+                        Thread.sleep((long) (500 + Math.random() * 1500));
                         if(this.mainNode.pendingTransactions.size()==3){
                             Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
                             Block newBlock = new Block(Blockchain.blockchain.size(),lastBlock.getHash());
@@ -205,6 +212,7 @@ public class NodeServer {
                             // newBlock.mineBlock(4);
                             if(Blockchain.addBlock(newBlock)){
                                 System.out.println(mainNode.nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
+                                mainNode.broadcastBlock(newBlock);
                                 mainNode.pendingTransactions.clear();
                             }
 

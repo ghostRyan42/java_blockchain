@@ -116,7 +116,7 @@ public class NodeClient3 {
             log("Transaction créée avec succès.");
             this.pendingTransactions.add(trans);
             broadcastTransaction(trans);
-
+            Thread.sleep((long) (500 + Math.random() * 1500));
             if (pendingTransactions.size() >= 3) {
                 mineNewBlock();
             }
@@ -132,6 +132,8 @@ public class NodeClient3 {
         for (Transaction tx : pendingTransactions) {
             newBlock.addTransaction(tx);
         }
+
+        newBlock.calculateHash();
 
         if (Blockchain.addBlock(newBlock)) {
             log(nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
@@ -201,6 +203,7 @@ public class NodeClient3 {
                     System.out.println(this.mainNode.nodeId + ": Transaction reçue - " + transaction);
                     if (!this.mainNode.pendingTransactions.contains(transaction)) {
                         this.mainNode.pendingTransactions.add(transaction);
+                        Thread.sleep((long) (500 + Math.random() * 1500));
                         if(this.mainNode.pendingTransactions.size()==3){
                             Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
                             Block newBlock = new Block(Blockchain.blockchain.size()+1,lastBlock.getHash());
@@ -210,9 +213,11 @@ public class NodeClient3 {
                                 newBlock.addTransaction(tx);
                             }
 
+                            newBlock.calculateHash();
                             // newBlock.mineBlock(4);
                             if(Blockchain.addBlock(newBlock)){
                                 System.out.println(mainNode.nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
+                                mainNode.broadcastBlock(newBlock);
                                 mainNode.pendingTransactions.clear();
                             }
 
