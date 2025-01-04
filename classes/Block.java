@@ -64,6 +64,13 @@ public class Block implements Serializable {
     public String getPreviousHash() {
         return previousHash;
     }
+    public long getTimestamp() {
+        return timestamp;
+    }
+    
+    public int getNonce() {
+        return nonce;
+    }
 
     @Override
     public String toString() {

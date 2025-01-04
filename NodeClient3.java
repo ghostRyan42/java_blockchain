@@ -2,6 +2,10 @@ import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -10,8 +14,12 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 
@@ -468,6 +476,20 @@ public class NodeClient3 {
 
     //     server.start();
     // }
+    private List<Map<String, Object>> serializeTransactions(List<Transaction> transactions) {
+        List<Map<String, Object>> serializedTransactions = new ArrayList<>();
+        for (Transaction tx : transactions) {
+            Map<String, Object> transactionMap = new HashMap<>();
+            transactionMap.put("id", tx.getTransactionId());
+            transactionMap.put("timestamp", tx.getFormattedTimestamp());
+            transactionMap.put("sender", tx.getSender().toString());      // Clé publique convertie en chaîne
+            transactionMap.put("recipient", tx.getRecipient().toString()); // Clé publique convertie en chaîne
+            transactionMap.put("amount", tx.getAmount());
+            transactionMap.put("transactionFee", tx.getTransactionFee());
+            serializedTransactions.add(transactionMap);
+        }
+        return serializedTransactions;
+    }
     
     private void startHttpServer() throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(5500), 0);
@@ -544,9 +566,31 @@ public class NodeClient3 {
     
         // Endpoint pour obtenir la blockchain
         server.createContext("/blockchain", exchange -> {
-            if ("GET".equals(exchange.getRequestMethod())) {
-                String response = new Gson().toJson(Blockchain.blockchain);
-                sendJsonResponse(exchange, response);
+            try {
+                if ("GET".equals(exchange.getRequestMethod())) {
+                    // Transformation des blocs en une structure sérialisable
+                    List<Map<String, Object>> serializedBlockchain = new ArrayList<>();
+        
+                    for (Block block : Blockchain.blockchain) {
+                        Map<String, Object> blockMap = new HashMap<>();
+                        blockMap.put("index", block.getindex());
+                        blockMap.put("timestamp", block.getTimestamp());
+                        blockMap.put("transactions", serializeTransactions(block.getTransactions())); // Sérialiser les transactions
+                        blockMap.put("previousHash", block.getPreviousHash());
+                        blockMap.put("hash", block.getHash());
+                        blockMap.put("nonce", block.getNonce());
+        
+                        serializedBlockchain.add(blockMap);
+                    }
+        
+                    // Sérialisation en JSON
+                    String response = new Gson().toJson(serializedBlockchain);
+                    sendJsonResponse(exchange, response);
+                }
+            } catch (Exception e) {
+                System.err.println("Erreur lors de la récupération de la blockchain: " + e.getMessage());
+                e.printStackTrace();
+                sendJsonError(exchange, 500, "Erreur interne du serveur");
             }
         });
     
@@ -561,8 +605,31 @@ public class NodeClient3 {
         // Route pour récupérer les transactions en attente
         server.createContext("/node/pending-transactions", exchange -> {
             if ("GET".equals(exchange.getRequestMethod())) {
-                String response = new Gson().toJson(pendingTransactions);
-                sendJsonResponse(exchange, response);
+                try {
+                    // Vérification de null
+                    if (pendingTransactions == null) {
+                        pendingTransactions = new ArrayList<>(); // ou la structure appropriée
+                    }
+                    
+                    ArrayList<Map<String, String>> tempTrans = new ArrayList<>();
+                    for (Transaction tx : pendingTransactions) {
+                        Map<String, String> tempTx = new HashMap<>();
+                        tempTx.put("id", tx.getTransactionId());
+                        tempTx.put("timestamp", tx.getFormattedTimestamp());
+                        tempTx.put("sender", tx.getSender().toString());
+                        tempTx.put("recipient", tx.getRecipient().toString());
+                        tempTx.put("amount", String.valueOf(tx.getAmount()));
+                        tempTx.put("transactionFee", String.valueOf(tx.getTransactionFee()));
+                        tempTrans.add(tempTx);
+                    }
+                    Gson gson = new Gson();
+                    String response = gson.toJson(tempTrans);
+                    sendJsonResponse(exchange, response);
+                } catch (Exception e) {
+                    System.err.println("Erreur lors de la récupération des transactions en attente: " + e.getMessage());
+                    e.printStackTrace();
+                    sendJsonError(exchange, 500, "Erreur interne du serveur");
+                }
             }
         });
     
@@ -596,6 +663,24 @@ public class NodeClient3 {
             this.nodeId = nodeId;
             this.port = port;
             this.balance = balance;
+        }
+    }
+    public class PublicKeyAdapter extends TypeAdapter<PublicKey> {
+        @Override
+        public void write(JsonWriter out, PublicKey value) throws IOException {
+            if (value == null) {
+                out.nullValue();
+                return;
+            }
+            // On convertit la clé en format Base64
+            out.value(Base64.getEncoder().encodeToString(value.getEncoded()));
+        }
+
+        @Override
+        public PublicKey read(JsonReader in) throws IOException {
+            // La désérialisation n'est pas nécessaire pour votre cas,
+            // mais il faut l'implémenter pour le TypeAdapter
+            return null;
         }
     }
     

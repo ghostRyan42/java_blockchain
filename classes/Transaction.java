@@ -64,13 +64,21 @@ public class Transaction implements Serializable {
 
     public double getTransactionFee() {
         return transactionFee;
-    }
+        }
 
-    public long getTimestamp() {
+        public long getTimestamp() {
         return timestamp;
-    }
-    @Override
-    public String toString() {
+        }
+
+        public String getFormattedTimestamp() {
+        Instant instant = Instant.ofEpochMilli(timestamp);
+        return java.time.format.DateTimeFormatter.ofPattern("d-M-y H:mm:ss")
+            .withZone(java.time.ZoneId.systemDefault())
+            .format(instant);
+        }
+
+        @Override
+        public String toString() {
         return "Transaction [transactionId=" + transactionId + ", sender=" + sender + ", recipient=" + recipient + ", amount=" + amount + ", transactionFee=" + transactionFee + ", timestamp=" + timestamp + "]";
     }
 }

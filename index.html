@@ -435,9 +435,164 @@
             border-radius: 12px;
             font-size: 0.8rem;
         }
+
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        }
+
+        .notification {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px 20px;
+            color: white;
+            transform: translateX(120%);
+            animation: slideIn 0.5s forwards;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 4px solid;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .notification.success {
+            border-color: var(--success-color);
+        }
+
+        .notification.error {
+            border-color: var(--error-color);
+        }
+
+        .notification::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .notification.success::before {
+            background: var(--success-color);
+            box-shadow: 0 0 12px var(--success-color);
+        }
+
+        .notification.error::before {
+            background: var(--error-color);
+            box-shadow: 0 0 12px var(--error-color);
+        }
+
+        @keyframes slideIn {
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+
+        /* Nouveau loader futuriste */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 11, 30, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 9998;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .loader {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .loader-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            border-top-color: #00f5a0;
+            animation: spin 1s linear infinite;
+        }
+
+        .loader-ring:nth-child(2) {
+            width: 80%;
+            height: 80%;
+            top: 10%;
+            left: 10%;
+            border-top-color: #00d9f5;
+            animation-duration: 0.8s;
+            animation-direction: reverse;
+        }
+
+        .loader-ring:nth-child(3) {
+            width: 60%;
+            height: 60%;
+            top: 20%;
+            left: 20%;
+            border-top-color: #7928CA;
+            animation-duration: 0.6s;
+        }
+
+        .loader-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            color: white;
+            white-space: nowrap;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease infinite;
+        }
     </style>
 </head>
 <body>
+    <div class="notification-container" id="notificationContainer"></div>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader">
+            <div class="loader-ring"></div>
+            <div class="loader-ring"></div>
+            <div class="loader-ring"></div>
+            <div class="loader-text pulse">Traitement en cours...</div>
+        </div>
+    </div>
     <div class="background"></div>
     <div class="container">
         <div class="dashboard">
@@ -535,10 +690,6 @@
                     <label>Montant</label>
                     <input type="number" id="amount" step="0.01" required>
                 </div>
-                <div class="form-group">
-                    <label>Frais</label>
-                    <input type="number" id="fee" step="0.01" required>
-                </div>
                 <button type="submit" class="btn">Envoyer</button>
             </form>
             <div class="status-message" id="transactionStatus"></div>
@@ -556,14 +707,43 @@
             lastTransactionId: null,
             balance: 0
         };
-    
-        function showLoading() {
-            $('#loadingSpinner').show();
+
+        function showNotification(message, type = 'success') {
+            const notification = $(`
+                <div class="notification ${type}">
+                    ${message}
+                </div>
+            `);
+            
+            $('#notificationContainer').append(notification);
+            
+            // Supprime la notification après 5 secondes
+            setTimeout(() => {
+                notification.css('animation', 'slideOut 0.5s forwards');
+                setTimeout(() => notification.remove(), 500);
+            }, 5000);
         }
-    
+
+        // Fonctions améliorées pour le loader
+        function showLoading(message = 'Traitement en cours...') {
+            $('.loader-text').text(message);
+            $('#loadingOverlay').css('display', 'flex');
+            $('body').css('overflow', 'hidden'); // Empêche le défilement pendant le chargement
+        }
+
         function hideLoading() {
-            $('#loadingSpinner').hide();
+            $('#loadingOverlay').fadeOut(300, function() {
+                $('body').css('overflow', '');
+            });
         }
+    
+        // function showLoading() {
+        //     $('#loadingSpinner').show();
+        // }
+    
+        // function hideLoading() {
+        //     $('#loadingSpinner').hide();
+        // }
     
         function showStatus(elementId, message, type) {
             const statusElement = $(`#${elementId}`);
@@ -613,8 +793,8 @@
                     data = safeParseJSON(data);
                 }
                 if (data && data.balance !== lastState.balance) {
-                    $('#walletBalance').text(`${data.balance.toFixed(2)} Tokens`);
-                    $('#nodeInfo').text(`Node: ${data.nodeId} | Port: ${data.port}`);
+                    $('#walletBalance').text(`${data.balance.toFixed(2)} Fcfa`);
+                    // $('#nodeInfo').text(`Node: ${data.nodeId} | Port: ${data.port}`);
                     lastState.balance = data.balance;
                 }
             }
@@ -629,10 +809,11 @@
                 console.log(data)
                 const peers = typeof data === 'string' ? safeParseJSON(data) : data;
                 if (peers) {
-                    const currentPeerCount = peers.length;
+                    const currentPeerCount = peers.connectedPeers;
                     if (currentPeerCount !== lastState.peerCount) {
                         $('#peersCount').text(`${currentPeerCount} pairs`);
                         $('#connectionStatus').toggleClass('connected', currentPeerCount > 0);
+                        $('#nodeInfo').text(`Connecté`);
                         lastState.peerCount = currentPeerCount;
                         
                         // Activer le bouton de transaction si des pairs sont connectés
@@ -655,12 +836,14 @@
                 method: 'GET',
                 success: function(data) {
                 console.log(data)
+                console.log("blockchain",data)
                     try {
                         const blockchain = typeof data === 'string' ? safeParseJSON(data) : data;
                         if (blockchain) {
                             const currentBlockCount = blockchain.length;
                             if (currentBlockCount !== lastState.blockCount) {
-                                $('#blockchainData').html(`<pre>${JSON.stringify(blockchain, null, 2)}</pre>`);
+                                // $('#blockchainData').html(`<pre>${JSON.stringify(blockchain, null, 2)}</pre>`);
+                                renderBlockchain(blockchain);
                                 updateTransactionHistory(blockchain);
                                 lastState.blockCount = currentBlockCount;
                             }
@@ -671,12 +854,117 @@
                 }
             });
         }
+
+        function renderBlockchain(blockchain) {
+            const container = $('#blockchainData');
+            container.empty();
+            
+            // Style CSS pour la visualisation
+            const style = `
+                <style>
+                    .block-container {
+                        display: flex;
+                        align-items: center;
+                        gap: 20px;
+                        padding: 20px;
+                        overflow-x: auto;
+                    }
+                    .block {
+                        background: rgba(255, 255, 255, 0.1);
+                        border: 2px solid rgba(255, 255, 255, 0.2);
+                        border-radius: 10px;
+                        padding: 15px;
+                        min-width: 200px;
+                        position: relative;
+                        transition: transform 0.3s;
+                    }
+                    .block:hover {
+                        transform: translateY(-5px);
+                    }
+                    .block::after {
+                        content: "→";
+                        position: absolute;
+                        right: -25px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        color: rgba(255, 255, 255, 0.5);
+                        font-size: 24px;
+                        z-index: 1;
+                    }
+                    .block:last-child::after {
+                        display: none;
+                    }
+                    .block-index {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #00f5a0;
+                        margin-bottom: 10px;
+                    }
+                    .block-hash {
+                        font-family: monospace;
+                        color: #00d9f5;
+                        font-size: 12px;
+                        word-break: break-all;
+                        margin-bottom: 10px;
+                    }
+                    .block-info {
+                        display: flex;
+                        justify-content: space-between;
+                        color: rgba(255, 255, 255, 0.7);
+                        font-size: 12px;
+                    }
+                    .transactions-count {
+                        background: rgba(0, 245, 160, 0.2);
+                        color: #00f5a0;
+                        padding: 3px 8px;
+                        border-radius: 12px;
+                        font-size: 12px;
+                    }
+                </style>
+            `;
+
+            // Création du conteneur de blocs
+            const blockContainer = $('<div class="block-container"></div>');
+
+            // Création des blocs
+            blockchain.forEach(block => {
+                const date = new Date(block.timestamp).toLocaleString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const blockElement = $(`
+                    <div class="block">
+                        <div class="block-index">Bloc #${block.index}</div>
+                        <div class="block-hash" title="${block.hash}">
+                            ${block.hash.substring(0, 8)}...${block.hash.substring(block.hash.length - 8)}
+                        </div>
+                        <div class="transactions-count">
+                            ${block.transactions.length} transaction${block.transactions.length !== 1 ? 's' : ''}
+                        </div>
+                        <div class="block-info">
+                            <span>Nonce: ${block.nonce}</span>
+                            <span>${date}</span>
+                        </div>
+                    </div>
+                `);
+
+                blockContainer.append(blockElement);
+            });
+
+            // Ajout du style et du conteneur à la page
+            container.append(style, blockContainer);
+        }
     
         function checkPendingTransactions() {
             return $.ajax({
                 url: '/node/pending-transactions',
                 method: 'GET',
                 success: function(data) {
+                    console.log('pendingtrans',data)
                     const pending = typeof data === 'string' ? safeParseJSON(data) : data;
                     if (pending) {
                         const currentPendingCount = pending.length;
@@ -689,10 +977,9 @@
                             lastState.lastTransactionId = lastTransactionId;
                         }
                     }
-                }
+                },
             });
         }
-    
     
         function formatAmount(amount) {
             return new Intl.NumberFormat('fr-FR', {
@@ -771,7 +1058,7 @@
         // Connexion au pair
         $('#connectForm').on('submit', function(e) {
             e.preventDefault();
-            showLoading();
+            showLoading('Connexion au réseau...');
     
             const host = $('#peerHost').val();
             const port = $('#peerPort').val();
@@ -784,13 +1071,13 @@
                     isConnected = true;
                     $('#connectionStatus').addClass('connected');
                     $('#transactionBtn').prop('disabled', false);
-                    showStatus('connectStatus', 'Connexion réussie', 'success');
+                    showNotification('Connexion établie avec succès');
                     pollChanges(); // Première mise à jour immédiate
                     $('#connectModal').hide();
                 },
                 error: function(xhr, status, error) {
                     console.error(error);
-                    showStatus('connectStatus', 'Erreur de connexion: ' + error, 'error');
+                    showNotification('Erreur de connexion : ' + error, 'error');
                 },
                 complete: function() {
                     hideLoading();
@@ -802,15 +1089,15 @@
         $('#transactionForm').on('submit', function(e) {
             e.preventDefault();
             if (!isConnected) {
-                showStatus('transactionStatus', 'Connectez-vous d\'abord', 'error');
+                showNotification('Veuillez vous connecter d\'abord', 'error');
                 return;
             }
     
-            showLoading();
+            showLoading('Transaction en cours de traitement...');
             const data = {
                 peerIndex: $('#peerIndex').val(),
                 amount: $('#amount').val(),
-                fee: $('#fee').val()
+                fee: $('#amount').val()*0.1
             };
     
             $.ajax({
@@ -818,12 +1105,12 @@
                 method: 'POST',
                 data: `peerIndex=${data.peerIndex}&amount=${data.amount}&fee=${data.fee}`,
                 success: function(response) {
-                    showStatus('transactionStatus', 'Transaction envoyée', 'success');
+                    showNotification('Transaction effectuée avec succès');
                     pollChanges(); // Mise à jour immédiate après transaction
                     $('#transactionModal').hide();
                 },
                 error: function(xhr, status, error) {
-                    showStatus('transactionStatus', 'Erreur de transaction: ' + error, 'error');
+                    showNotification('Erreur lors de la transaction : ' + error, 'error');
                 },
                 complete: function() {
                     hideLoading();
