@@ -1,6 +1,13 @@
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+import com.google.gson.Gson;
+
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
@@ -95,17 +102,18 @@ public class NodeServer {
         }
     }
 
-    private void createTransaction(NodeServer destNode, double amount, double fee) throws Exception{
-        Transaction trans= this.myWallet.createTransaction(destNode.myWallet.getPublicKey(), amount, fee);
-        if(trans != null){
+    private void createTransaction(NodeMainInfo destNode, double amount, double fee) throws Exception {
+        Transaction trans = this.myWallet.createTransaction(destNode.getWalletPublicKey(), amount, fee);
+        if (trans != null) {
+            System.out.println("Transaction créée avec succès.");
             this.pendingTransactions.add(trans);
             broadcastTransaction(trans);
             Thread.sleep((long) (500 + Math.random() * 1500));
             if (pendingTransactions.size() >= 3) {
                 mineNewBlock();
             }
-        }else{
-            System.out.println(nodeId + ": Échec de la creation de la transaction ");
+        } else {
+            System.out.println(nodeId + ": Échec de la création de la transaction.");
         }
     }
 
@@ -294,12 +302,280 @@ public class NodeServer {
         }
     }
     
+    // private void startHttpServer() throws IOException {
+    //     HttpServer server = HttpServer.create(new InetSocketAddress(8083), 0);
+    //     System.out.println("Serveur HTTP démarré sur le port 8083");
 
+    //     // Route principale pour servir un fichier HTML
+    //     server.createContext("/", exchange -> {
+    //         File file = new File("index.html"); // Fichier HTML statique
+    //         if (file.exists()) {
+    //             byte[] response = Files.readAllBytes(file.toPath());
+    //             exchange.sendResponseHeaders(200, response.length);
+    //             OutputStream os = exchange.getResponseBody();
+    //             os.write(response);
+    //             os.close();
+    //         } else {
+    //             exchange.sendResponseHeaders(404, 0);
+    //             exchange.close();
+    //         }
+    //     });
+
+    //     // Endpoint pour récupérer les informations du nœud
+    //     server.createContext("/node/info", exchange -> {
+    //         if ("GET".equals(exchange.getRequestMethod())) {
+    //             String response = String.format(
+    //                 "{\"nodeId\":\"%s\",\"port\":%d,\"balance\":%.2f}",
+    //                 nodeId, port, myWallet.getBalance()
+    //             );
+    //             exchange.sendResponseHeaders(200, response.length());
+    //             OutputStream os = exchange.getResponseBody();
+    //             os.write(response.getBytes());
+    //             os.close();
+    //         }
+    //     });
+
+    //     // Endpoint pour connecter le nœud à un pair
+    //     server.createContext("/node/connect", exchange -> {
+    //         if ("POST".equals(exchange.getRequestMethod())) {
+    //             InputStream is = exchange.getRequestBody();
+    //             BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+    //             StringBuilder sb = new StringBuilder();
+    //             String line;
+    //             while ((line = reader.readLine()) != null) {
+    //                 sb.append(line);
+    //             }
+    //             String[] params = sb.toString().split("&");
+    //             String host = params[0].split("=")[1];
+    //             int peerPort = Integer.parseInt(params[1].split("=")[1]);
+
+    //             try {
+    //                 connectToPeer(host, peerPort);
+    //                 String response = "Connecté au pair avec succès.";
+    //                 exchange.sendResponseHeaders(200, response.length());
+    //                 exchange.getResponseBody().write(response.getBytes());
+    //             } catch (Exception e) {
+    //                 String response = "Erreur lors de la connexion au pair.";
+    //                 exchange.sendResponseHeaders(500, response.length());
+    //                 exchange.getResponseBody().write(response.getBytes());
+    //             } finally {
+    //                 exchange.close();
+    //             }
+    //         }
+    //     });
+
+    //     // Endpoint pour créer une transaction
+    //     server.createContext("/transaction/create", exchange -> {
+    //         if ("POST".equals(exchange.getRequestMethod())) {
+    //             InputStream is = exchange.getRequestBody();
+    //             BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+    //             StringBuilder sb = new StringBuilder();
+    //             String line;
+    //             while ((line = reader.readLine()) != null) {
+    //                 sb.append(line);
+    //             }
+    //             String[] params = sb.toString().split("&");
+    //             int peerIndex = Integer.parseInt(params[0].split("=")[1]);
+    //             double amount = Double.parseDouble(params[1].split("=")[1]);
+    //             double fee = Double.parseDouble(params[2].split("=")[1]);
+
+    //             try {
+    //                 createTransaction(peers.get(peerIndex), amount, fee);
+    //                 String response = "Transaction créée avec succès.";
+    //                 exchange.sendResponseHeaders(200, response.length());
+    //                 exchange.getResponseBody().write(response.getBytes());
+    //             } catch (Exception e) {
+    //                 String response = "Erreur lors de la création de la transaction.";
+    //                 exchange.sendResponseHeaders(500, response.length());
+    //                 exchange.getResponseBody().write(response.getBytes());
+    //             } finally {
+    //                 exchange.close();
+    //             }
+    //         }
+    //     });
+
+    //     // Endpoint pour récupérer la blockchain actuelle
+    //     server.createContext("/blockchain", exchange -> {
+    //         if ("GET".equals(exchange.getRequestMethod())) {
+    //             String response = Blockchain.blockchain.toString();
+    //             exchange.sendResponseHeaders(200, response.length());
+    //             OutputStream os = exchange.getResponseBody();
+    //             os.write(response.getBytes());
+    //             os.close();
+    //         }
+    //     });
+
+    //      // Route pour récupérer le nombre de pairs
+    // server.createContext("/node/peers", exchange -> {
+    //     String response = "Nombre de pairs connectés : " + peers.size();
+    //     exchange.sendResponseHeaders(200, response.getBytes().length);
+    //     OutputStream os = exchange.getResponseBody();
+    //     os.write(response.getBytes());
+    //     os.close();
+    // });
+
+    // // Route pour récupérer les transactions en attente
+    // server.createContext("/node/pending-transactions", exchange -> {
+    //     StringBuilder responseBuilder = new StringBuilder();
+    //     responseBuilder.append("Transactions en attente :\n");
+    //     for (Transaction tx : pendingTransactions) {
+    //         responseBuilder.append(tx.toString()).append("\n");
+    //     }
+    //     String response = responseBuilder.toString();
+    //     exchange.sendResponseHeaders(200, response.getBytes().length);
+    //     OutputStream os = exchange.getResponseBody();
+    //     os.write(response.getBytes());
+    //     os.close();
+    // });
+
+    //     server.start();
+    // }
+    
+    private void startHttpServer() throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress(8083), 0);
+        System.out.println("Serveur HTTP démarré sur le port 8083");
+    
+        // Route principale pour servir le fichier HTML
+        server.createContext("/", exchange -> {
+            File file = new File("index.html"); // Fichier HTML à servir
+            if (file.exists()) {
+                byte[] response = Files.readAllBytes(file.toPath());
+                exchange.sendResponseHeaders(200, response.length);
+                OutputStream os = exchange.getResponseBody();
+                os.write(response);
+                os.close();
+            } else {
+                sendJsonError(exchange, 404, "Page non trouvée");
+            }
+        });
+    
+        // Endpoint pour obtenir les informations du nœud
+        server.createContext("/node/info", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String response = new Gson().toJson(new NodeInfoResponse(nodeId, port, myWallet.getBalance()));
+                sendJsonResponse(exchange, response);
+            }
+        });
+    
+        // Endpoint pour se connecter à un pair
+        server.createContext("/node/connect", exchange -> {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                try (InputStream is = exchange.getRequestBody();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    String[] params = sb.toString().split("&");
+                    String host = params[0].split("=")[1];
+                    int peerPort = Integer.parseInt(params[1].split("=")[1]);
+    
+                    connectToPeer(host, peerPort);
+                    String response = "{\"message\": \"Connecté au pair avec succès.\"}";
+                    sendJsonResponse(exchange, response);
+                } catch (Exception e) {
+                    sendJsonError(exchange, 500, "Erreur lors de la connexion au pair.");
+                }
+            }
+        });
+    
+        // Endpoint pour créer une transaction
+        server.createContext("/transaction/create", exchange -> {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                try (InputStream is = exchange.getRequestBody();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    String[] params = sb.toString().split("&");
+                    int peerIndex = Integer.parseInt(params[0].split("=")[1]);
+                    double amount = Double.parseDouble(params[1].split("=")[1]);
+                    double fee = Double.parseDouble(params[2].split("=")[1]);
+    
+                    createTransaction(peers.get(peerIndex), amount, fee);
+                    String response = "{\"message\": \"Transaction créée avec succès.\"}";
+                    sendJsonResponse(exchange, response);
+                } catch (Exception e) {
+                    sendJsonError(exchange, 500, "Erreur lors de la création de la transaction.");
+                }
+            }
+        });
+    
+        // Endpoint pour obtenir la blockchain
+        server.createContext("/blockchain", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String response = new Gson().toJson(Blockchain.blockchain);
+                sendJsonResponse(exchange, response);
+            }
+        });
+    
+        // Route pour récupérer le nombre de pairs
+        server.createContext("/node/peers", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String response = String.format("{\"connectedPeers\": %d}", peers.size());
+                sendJsonResponse(exchange, response);
+            }
+        });
+    
+        // Route pour récupérer les transactions en attente
+        server.createContext("/node/pending-transactions", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String response = new Gson().toJson(pendingTransactions);
+                sendJsonResponse(exchange, response);
+            }
+        });
+    
+        server.start();
+    }
+    
+    private void sendJsonResponse(HttpExchange exchange, String jsonResponse) throws IOException {
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, jsonResponse.getBytes().length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(jsonResponse.getBytes());
+        }
+    }
+    
+    private void sendJsonError(HttpExchange exchange, int statusCode, String errorMessage) throws IOException {
+        String response = String.format("{\"error\": \"%s\"}", errorMessage);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(statusCode, response.getBytes().length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response.getBytes());
+        }
+    }
+    
+    // Classe de réponse pour les informations de noeud
+    private static class NodeInfoResponse {
+        private String nodeId;
+        private int port;
+        private double balance;
+    
+        public NodeInfoResponse(String nodeId, int port, double balance) {
+            this.nodeId = nodeId;
+            this.port = port;
+            this.balance = balance;
+        }
+    }
+    
+    
  
-    public static void main(String[] args) throws NoSuchAlgorithmException {
+    public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
             NodeServer node1 = new NodeServer("node1", 8080);
             node1.setWalletAmount(200);
             Blockchain.initialize();
-            node1.start();
+            new Thread(() -> {
+                try {
+                    node1.start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+
+            node1.startHttpServer();
+
         }
 }
