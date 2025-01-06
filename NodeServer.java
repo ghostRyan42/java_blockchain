@@ -116,7 +116,7 @@ public class NodeServer {
             System.out.println("Transaction créée avec succès.");
             this.pendingTransactions.add(trans);
             broadcastTransaction(trans);
-            Thread.sleep((long) (500 + Math.random() * 1500));
+            // Thread.sleep((long) (500 + Math.random() * 1500));
             if (pendingTransactions.size() >= 3) {
                 mineNewBlock();
             }
@@ -182,6 +182,8 @@ public class NodeServer {
     private static class ClientHandler implements Runnable {
         private Socket clientSocket;
         private NodeServer mainNode;
+        private NodeMainInfo peerInfo;
+
     
         public ClientHandler(Socket socket, NodeServer node) {
             this.clientSocket = socket;
@@ -243,6 +245,7 @@ public class NodeServer {
                         if(Blockchain.addBlock(block)){
                             // updateWalletBalances(block);
                             this.mainNode.pendingTransactions.removeIf(tx -> block.getTransactions().contains(tx));
+                            System.err.println("taille de la liste des transactions en attente après retrait : "+this.mainNode.pendingTransactions.size());
                             System.out.println(this.mainNode.nodeId + ": Bloc ajouté à la blockchain.");
                         };
                     }
@@ -254,6 +257,7 @@ public class NodeServer {
                     System.out.println("Informations reçues du nœud : " + peerInfo.toString());
                     // Vous pouvez ajouter cette information dans la liste de vos pairs (peers)
                     if (!mainNode.peers.contains(peerInfo)) {
+                        this.peerInfo = peerInfo;
                         mainNode.peers.add(peerInfo);
                         mainNode.notifyPeers(peerInfo);
                         System.out.println("Pair ajouté à la liste des pairs.");
@@ -288,7 +292,7 @@ public class NodeServer {
                         Object message = in.readObject();
     
                         // Gérer le message
-                        System.out.println(message);
+                        // System.out.println(message);
                         handleMessage(message, in, out);
     
                         // Réponse au client
@@ -303,6 +307,9 @@ public class NodeServer {
             } finally {
                 try {
                     clientSocket.close();
+                    System.out.println("Connexion fermée pour : " + clientSocket.getInetAddress());
+                    mainNode.peers.removeIf(peer ->  peer.getWalletPublicKey() == this.peerInfo.getWalletPublicKey());
+                    System.out.println("Nœud supprimé de la liste des pairs : "+mainNode.peers.size());
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -310,134 +317,6 @@ public class NodeServer {
         }
     }
     
-    // private void startHttpServer() throws IOException {
-    //     HttpServer server = HttpServer.create(new InetSocketAddress(8083), 0);
-    //     System.out.println("Serveur HTTP démarré sur le port 8083");
-
-    //     // Route principale pour servir un fichier HTML
-    //     server.createContext("/", exchange -> {
-    //         File file = new File("index.html"); // Fichier HTML statique
-    //         if (file.exists()) {
-    //             byte[] response = Files.readAllBytes(file.toPath());
-    //             exchange.sendResponseHeaders(200, response.length);
-    //             OutputStream os = exchange.getResponseBody();
-    //             os.write(response);
-    //             os.close();
-    //         } else {
-    //             exchange.sendResponseHeaders(404, 0);
-    //             exchange.close();
-    //         }
-    //     });
-
-    //     // Endpoint pour récupérer les informations du nœud
-    //     server.createContext("/node/info", exchange -> {
-    //         if ("GET".equals(exchange.getRequestMethod())) {
-    //             String response = String.format(
-    //                 "{\"nodeId\":\"%s\",\"port\":%d,\"balance\":%.2f}",
-    //                 nodeId, port, myWallet.getBalance()
-    //             );
-    //             exchange.sendResponseHeaders(200, response.length());
-    //             OutputStream os = exchange.getResponseBody();
-    //             os.write(response.getBytes());
-    //             os.close();
-    //         }
-    //     });
-
-    //     // Endpoint pour connecter le nœud à un pair
-    //     server.createContext("/node/connect", exchange -> {
-    //         if ("POST".equals(exchange.getRequestMethod())) {
-    //             InputStream is = exchange.getRequestBody();
-    //             BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-    //             StringBuilder sb = new StringBuilder();
-    //             String line;
-    //             while ((line = reader.readLine()) != null) {
-    //                 sb.append(line);
-    //             }
-    //             String[] params = sb.toString().split("&");
-    //             String host = params[0].split("=")[1];
-    //             int peerPort = Integer.parseInt(params[1].split("=")[1]);
-
-    //             try {
-    //                 connectToPeer(host, peerPort);
-    //                 String response = "Connecté au pair avec succès.";
-    //                 exchange.sendResponseHeaders(200, response.length());
-    //                 exchange.getResponseBody().write(response.getBytes());
-    //             } catch (Exception e) {
-    //                 String response = "Erreur lors de la connexion au pair.";
-    //                 exchange.sendResponseHeaders(500, response.length());
-    //                 exchange.getResponseBody().write(response.getBytes());
-    //             } finally {
-    //                 exchange.close();
-    //             }
-    //         }
-    //     });
-
-    //     // Endpoint pour créer une transaction
-    //     server.createContext("/transaction/create", exchange -> {
-    //         if ("POST".equals(exchange.getRequestMethod())) {
-    //             InputStream is = exchange.getRequestBody();
-    //             BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-    //             StringBuilder sb = new StringBuilder();
-    //             String line;
-    //             while ((line = reader.readLine()) != null) {
-    //                 sb.append(line);
-    //             }
-    //             String[] params = sb.toString().split("&");
-    //             int peerIndex = Integer.parseInt(params[0].split("=")[1]);
-    //             double amount = Double.parseDouble(params[1].split("=")[1]);
-    //             double fee = Double.parseDouble(params[2].split("=")[1]);
-
-    //             try {
-    //                 createTransaction(peers.get(peerIndex), amount, fee);
-    //                 String response = "Transaction créée avec succès.";
-    //                 exchange.sendResponseHeaders(200, response.length());
-    //                 exchange.getResponseBody().write(response.getBytes());
-    //             } catch (Exception e) {
-    //                 String response = "Erreur lors de la création de la transaction.";
-    //                 exchange.sendResponseHeaders(500, response.length());
-    //                 exchange.getResponseBody().write(response.getBytes());
-    //             } finally {
-    //                 exchange.close();
-    //             }
-    //         }
-    //     });
-
-    //     // Endpoint pour récupérer la blockchain actuelle
-    //     server.createContext("/blockchain", exchange -> {
-    //         if ("GET".equals(exchange.getRequestMethod())) {
-    //             String response = Blockchain.blockchain.toString();
-    //             exchange.sendResponseHeaders(200, response.length());
-    //             OutputStream os = exchange.getResponseBody();
-    //             os.write(response.getBytes());
-    //             os.close();
-    //         }
-    //     });
-
-    //      // Route pour récupérer le nombre de pairs
-    // server.createContext("/node/peers", exchange -> {
-    //     String response = "Nombre de pairs connectés : " + peers.size();
-    //     exchange.sendResponseHeaders(200, response.getBytes().length);
-    //     OutputStream os = exchange.getResponseBody();
-    //     os.write(response.getBytes());
-    //     os.close();
-    // });
-
-    // // Route pour récupérer les transactions en attente
-    // server.createContext("/node/pending-transactions", exchange -> {
-    //     StringBuilder responseBuilder = new StringBuilder();
-    //     responseBuilder.append("Transactions en attente :\n");
-    //     for (Transaction tx : pendingTransactions) {
-    //         responseBuilder.append(tx.toString()).append("\n");
-    //     }
-    //     String response = responseBuilder.toString();
-    //     exchange.sendResponseHeaders(200, response.getBytes().length);
-    //     OutputStream os = exchange.getResponseBody();
-    //     os.write(response.getBytes());
-    //     os.close();
-    // });
-
-    //     server.start();
-    // }
 
     private List<Map<String, Object>> serializeTransactions(List<Transaction> transactions) {
         List<Map<String, Object>> serializedTransactions = new ArrayList<>();

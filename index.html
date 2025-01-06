@@ -191,6 +191,7 @@
             border-radius: 15px;
             border: 1px solid var(--glass-border);
             overflow-x: auto;
+            width: 100%;
         }
 
         .loading {
@@ -229,11 +230,20 @@
             background: rgba(255, 68, 68, 0.2);
             color: var(--error-color);
         }
+        .main{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100%;
+            width: 100%;
+        }
         .dashboard {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
             margin-bottom: 2rem;
+            width: 100%;
         }
 
         .left-panel {
@@ -256,6 +266,7 @@
             border: 1px solid var(--glass-border);
             position: relative;
             overflow: hidden;
+            height: 100%;
         }
 
         .wallet-card::before {
@@ -406,6 +417,7 @@
         .blockchain-info {
             position: relative;
             padding-top: 1rem;
+            width: 100%;
         }
 
         .block-count {
@@ -581,6 +593,108 @@
         .pulse {
             animation: pulse 2s ease infinite;
         }
+
+        .operation-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 50px;
+            padding: 5px 10px;
+            width: 500px;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            min-width: 200px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Effet Shimmer */
+        .operation-status.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.1),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        .operation-status.active {
+            border-color: #00f5a0;
+            animation: pulse-border 2s infinite;
+        }
+
+        .operation-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+            transition: background-color 0.3s ease;
+        }
+
+        .operation-indicator.active {
+            background: #00f5a0;
+            box-shadow: 0 0 10px #00f5a0;
+        }
+
+        /* Circular Loading */
+        .circular-loading {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid #00f5a0;
+            border-radius: 50%;
+            margin-left: 5px;
+            display: none;
+            animation: spin 1s linear infinite;
+        }
+
+        .circular-loading.active {
+            display: inline-block;
+        }
+
+        .operation-text {
+            color: white;
+            font-size: 14px;
+        }
+
+        /* Animations */
+        @keyframes shimmer {
+            0% { left: -10%; }
+            100% { left: 10%; }
+        }
+
+        @keyframes pulse-border {
+            0% { 
+                border-color: rgba(0, 245, 160, 0.6);
+                box-shadow: 0 0 10px rgba(0, 245, 160, 0.2);
+            }
+            50% { 
+                border-color: rgba(0, 245, 160, 1);
+                box-shadow: 0 0 20px rgba(0, 245, 160, 0.4);
+            }
+            100% { 
+                border-color: rgba(0, 245, 160, 0.6);
+                box-shadow: 0 0 10px rgba(0, 245, 160, 0.2);
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
     </style>
 </head>
 <body>
@@ -595,72 +709,81 @@
     </div>
     <div class="background"></div>
     <div class="container">
-        <div class="dashboard">
-            <div class="left-panel">
-                <div class="wallet-card">
-                    <h2>Portefeuille FCFA</h2>
-                    <div class="wallet-balance" id="walletBalance">0.00</div>
-                    <div class="currency">FCFA</div>
-                    
-                    <div class="network-status">
-                        <div class="status-dot" id="connectionStatus"></div>
-                        <span id="nodeInfo">Non connecté</span>
-                        <span class="peers-count" id="peersCount">0 pairs</span>
+        <div class="main">
+            <div class="dashboard">
+                <div class="left-panel">
+                    <div class="wallet-card">
+                        <h2>Portefeuille FCFA</h2>
+                        <div class="wallet-balance" id="walletBalance">0.00</div>
+                        <div class="currency">FCFA</div>
+                        
+                        <div class="network-status">
+                            <div class="status-dot" id="connectionStatus"></div>
+                            <span id="nodeInfo">Non connecté</span>
+                            <span class="peers-count" id="peersCount">0 pairs</span>
+                        </div>
+    
+                        <div class="node-stats">
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalTransactions">0</div>
+                                <div class="stat-label">Transactions</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="blockCount">0</div>
+                                <div class="stat-label">Blocs</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="pendingCount">0</div>
+                                <div class="stat-label">En attente</div>
+                            </div>
+                        </div>
+    
+                        <div class="action-buttons">
+                            <button class="btn" data-modal="connectModal" id="connectBtn">Se Connecter au réseau</button>
+                            <button class="btn" data-modal="transactionModal" id="transactionBtn" disabled>Nouvelle Transaction</button>
+                        </div>
                     </div>
-
-                    <div class="node-stats">
-                        <div class="stat-item">
-                            <div class="stat-value" id="totalTransactions">0</div>
-                            <div class="stat-label">Transactions</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="blockCount">0</div>
-                            <div class="stat-label">Blocs</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="pendingCount">0</div>
-                            <div class="stat-label">En attente</div>
+    
+                </div>
+    
+                <div class="right-panel">
+                    <div class="transactions-section">
+                        <h3>Transactions en attente</h3>
+                        <div class="scroll-container" id="pendingTransactions">
+                            <!-- Les transactions en attente seront insérées ici dynamiquement -->
                         </div>
                     </div>
-
-                    <div class="action-buttons">
-                        <button class="btn" data-modal="connectModal" id="connectBtn">Connecter au réseau</button>
-                        <button class="btn" data-modal="transactionModal" id="transactionBtn" disabled>Nouvelle Transaction</button>
+    
+                    <div class="transactions-section">
+                        <h3>Historique des transactions</h3>
+                        <div class="scroll-container" id="transactionHistory">
+                            <!-- L'historique des transactions sera inséré ici dynamiquement -->
+                        </div>
                     </div>
                 </div>
-
-                <div class="blockchain-info">
-                    <h2 class="blockchain-title">Blockchain</h2>
-                    <span class="block-count" id="totalBlocks">0 blocs</span>
-                    <div class="blockchain-content scroll-container" id="blockchainData">
-                        <p>En attente de connexion...</p>
-                    </div>
-                </div>
+                
             </div>
-
-            <div class="right-panel">
-                <div class="transactions-section">
-                    <h3>Transactions en attente</h3>
-                    <div class="scroll-container" id="pendingTransactions">
-                        <!-- Les transactions en attente seront insérées ici dynamiquement -->
-                    </div>
-                </div>
-
-                <div class="transactions-section">
-                    <h3>Historique des transactions</h3>
-                    <div class="scroll-container" id="transactionHistory">
-                        <!-- L'historique des transactions sera inséré ici dynamiquement -->
-                    </div>
+            <div class="blockchain-info">
+                <h2 class="blockchain-title">Blockchain</h2>
+                <span class="block-count" id="totalBlocks">0 blocs</span>
+                <div class="blockchain-content scroll-container" id="blockchainData">
+                    <p>En attente de connexion...</p>
                 </div>
             </div>
         </div>
+        
+    </div>
+    <div class="operation-status" id="operationStatus">
+        <div class="operation-indicator" id="operationIndicator"></div>
+        <div class="operation-text" id="operationText">En attente...</div>
+        <div class="circular-loading" id="operationLoader"></div>
     </div>
 
     <!-- Modal de connexion -->
     <div class="modal" id="connectModal">
         <div class="modal-content">
             <button class="close-modal" type="button">&times;</button>
-            <h2>Connexion au réseau</h2>
+            <h2>Se connecter au réseau</h2>
             <form id="connectForm">
                 <div class="form-group">
                     <label>Adresse hôte</label>
@@ -707,6 +830,25 @@
             lastTransactionId: null,
             balance: 0
         };
+
+        function updateOperationStatus(isActive, message) {
+            const status = $('#operationStatus');
+            const indicator = $('#operationIndicator');
+            const text = $('#operationText');
+            const loader = $('#operationLoader');
+
+            if (isActive) {
+                status.addClass('active');
+                indicator.addClass('active');
+                loader.addClass('active');
+            } else {
+                status.removeClass('active');
+                indicator.removeClass('active');
+                loader.removeClass('active');
+            }
+
+            text.text(message);
+        }
 
         function showNotification(message, type = 'success') {
             const notification = $(`
@@ -813,11 +955,21 @@
                     if (currentPeerCount !== lastState.peerCount) {
                         $('#peersCount').text(`${currentPeerCount} pairs`);
                         $('#connectionStatus').toggleClass('connected', currentPeerCount > 0);
-                        $('#nodeInfo').text(`Connecté`);
+                        if(currentPeerCount!=0){
+                            $('#nodeInfo').text(`Connecté`);
+                        }else{
+                            $('#nodeInfo').text(`Non Connecté`);
+                        }
+                        if(currentPeerCount < lastState.peerCount){
+                            showNotification('Noeud déconnecté du réseau');
+                        }else if(currentPeerCount > lastState.peerCount){
+                            showNotification('Nouveau noeud connecté au réseau');
+                        }
                         lastState.peerCount = currentPeerCount;
                         
                         // Activer le bouton de transaction si des pairs sont connectés
                         $('#transactionBtn').prop('disabled', currentPeerCount === 0);
+                        $('#connectBtn').prop('disabled', currentPeerCount !== 0);
                         
                         // Mettre à jour le statut de connexion global si des pairs sont connectés
                         if (currentPeerCount > 0 && !isConnected) {
@@ -969,6 +1121,14 @@
                     if (pending) {
                         const currentPendingCount = pending.length;
                         const lastTransactionId = pending[0]?.id;
+
+                        if (currentPendingCount >= 3) {
+                            updateOperationStatus(true, 'Minage d\'un bloc en cours...');
+                        } else if (currentPendingCount > 0) {
+                            updateOperationStatus(true, `Minage de block en attente de transactions (${currentPendingCount}/3)...`);
+                        } else {
+                            updateOperationStatus(false, 'En attente...');
+                        }
     
                         if (currentPendingCount !== lastState.pendingTransactionsCount || 
                             lastTransactionId !== lastState.lastTransactionId) {
@@ -1094,6 +1254,7 @@
             }
     
             showLoading('Transaction en cours de traitement...');
+            updateOperationStatus(true, 'Transaction en cours...');
             const data = {
                 peerIndex: $('#peerIndex').val(),
                 amount: $('#amount').val(),
@@ -1114,6 +1275,7 @@
                 },
                 complete: function() {
                     hideLoading();
+                    updateOperationStatus(false, 'En attente...');
                 }
             });
         });

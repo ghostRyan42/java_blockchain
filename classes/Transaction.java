@@ -2,6 +2,7 @@ import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 public class Transaction implements Serializable {
@@ -63,22 +64,35 @@ public class Transaction implements Serializable {
     }
 
     public double getTransactionFee() {
-        return transactionFee;
-        }
+    return transactionFee;
+    }
 
-        public long getTimestamp() {
-        return timestamp;
-        }
+    public long getTimestamp() {
+    return timestamp;
+    }
 
-        public String getFormattedTimestamp() {
-        Instant instant = Instant.ofEpochMilli(timestamp);
-        return java.time.format.DateTimeFormatter.ofPattern("d-M-y H:mm:ss")
-            .withZone(java.time.ZoneId.systemDefault())
-            .format(instant);
-        }
+    public String getFormattedTimestamp() {
+    Instant instant = Instant.ofEpochMilli(timestamp);
+    return java.time.format.DateTimeFormatter.ofPattern("d-M-y H:mm:ss")
+        .withZone(java.time.ZoneId.systemDefault())
+        .format(instant);
+    }
 
-        @Override
-        public String toString() {
-        return "Transaction [transactionId=" + transactionId + ", sender=" + sender + ", recipient=" + recipient + ", amount=" + amount + ", transactionFee=" + transactionFee + ", timestamp=" + timestamp + "]";
+    @Override
+    public String toString() {
+    return "Transaction [transactionId=" + transactionId + ", sender=" + sender + ", recipient=" + recipient + ", amount=" + amount + ", transactionFee=" + transactionFee + ", timestamp=" + timestamp + "]";
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Transaction that = (Transaction) obj;
+        return Objects.equals(transactionId, that.transactionId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(transactionId);
     }
 }
