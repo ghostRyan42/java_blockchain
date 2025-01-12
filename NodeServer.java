@@ -217,24 +217,24 @@ public class NodeServer {
                     if (!this.mainNode.pendingTransactions.contains(transaction)) {
                         this.mainNode.pendingTransactions.add(transaction);
                         Thread.sleep((long) (500 + Math.random() * 1500));
-                        if(this.mainNode.pendingTransactions.size()==3){
-                            Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
-                            Block newBlock = new Block(Blockchain.blockchain.size(),lastBlock.getHash());
+                        // if(this.mainNode.pendingTransactions.size()==3){
+                        //     Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
+                        //     Block newBlock = new Block(Blockchain.blockchain.size(),lastBlock.getHash());
                             
-                            // Ajouter les transactions en attente au nouveau bloc
-                            for (Transaction tx : mainNode.pendingTransactions) {
-                                newBlock.addTransaction(tx);
-                            }
-                            newBlock.calculateHash();
+                        //     // Ajouter les transactions en attente au nouveau bloc
+                        //     for (Transaction tx : mainNode.pendingTransactions) {
+                        //         newBlock.addTransaction(tx);
+                        //     }
+                        //     newBlock.calculateHash();
 
-                            // newBlock.mineBlock(4);
-                            if(Blockchain.addBlock(newBlock)){
-                                System.out.println(mainNode.nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
-                                mainNode.broadcastBlock(newBlock);
-                                mainNode.pendingTransactions.clear();
-                            }
+                        //     // newBlock.mineBlock(4);
+                        //     if(Blockchain.addBlock(newBlock)){
+                        //         System.out.println(mainNode.nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
+                        //         mainNode.broadcastBlock(newBlock);
+                        //         mainNode.pendingTransactions.clear();
+                        //     }
 
-                        }
+                        // }
                         System.out.println(this.mainNode.nodeId + ": Transaction ajoutée au pool.");
                     }
                 } else if (message instanceof Block) {
@@ -252,6 +252,7 @@ public class NodeServer {
                 }else if (message instanceof NodeMainInfo) {
                     // Recevoir et stocker les informations du nœud
                     NodeMainInfo peerInfo = (NodeMainInfo) message;
+                    peerInfo.setIpAddress(clientSocket.getInetAddress().getHostAddress());
                     peerInfo.setIn(in);
                     peerInfo.setOut(out);
                     System.out.println("Informations reçues du nœud : " + peerInfo.toString());
@@ -281,7 +282,7 @@ public class NodeServer {
             ) {
                 System.out.println("Noeud connecté : " + clientSocket.getInetAddress()+clientSocket.getPort());
                 sendBlockchain(out);
-                NodeMainInfo myInfo = new NodeMainInfo("localhost", mainNode.port, mainNode.myWallet.getPublicKey());
+                NodeMainInfo myInfo = new NodeMainInfo("localhost", mainNode.port, mainNode.myWallet.getPublicKey(), mainNode.myWallet.name);
                 out.writeObject(myInfo);
                 out.flush();
                 System.out.println("informations envoyées avec succès");
@@ -394,14 +395,19 @@ public class NodeServer {
                         sb.append(line);
                     }
                     String[] params = sb.toString().split("&");
-                    int peerIndex = Integer.parseInt(params[0].split("=")[1]);
+                    String peerWalletKey = params[0].split("=")[1];
                     double amount = Double.parseDouble(params[1].split("=")[1]);
                     double fee = Double.parseDouble(params[2].split("=")[1]);
     
-                    createTransaction(peers.get(peerIndex), amount, fee);
+                    NodeMainInfo destNode = peers.stream()
+                        .filter(peer -> new Gson().toJson(peer.getWalletPublicKey().toString().replace("\n", "").trim()).equals(new Gson().toJson(peerWalletKey)))
+                        .findFirst()
+                        .orElseThrow(() -> new Exception("Peer not found"));
+                    createTransaction(destNode, amount, fee);
                     String response = "{\"message\": \"Transaction créée avec succès.\"}";
                     sendJsonResponse(exchange, response);
                 } catch (Exception e) {
+                    System.out.println(e.getMessage());
                     sendJsonError(exchange, 500, "Erreur lors de la création de la transaction.");
                 }
             }
@@ -440,8 +446,22 @@ public class NodeServer {
         // Route pour récupérer le nombre de pairs
         server.createContext("/node/peers", exchange -> {
             if ("GET".equals(exchange.getRequestMethod())) {
-                String response = String.format("{\"connectedPeers\": %d}", peers.size());
-                sendJsonResponse(exchange, response);
+            Map<String, Object> responseMap = new HashMap<>();
+            responseMap.put("connectedPeers", peers.size());
+            
+            List<Map<String, Object>> peersInfo = new ArrayList<>();
+            for (NodeMainInfo peer : peers) {
+                Map<String, Object> peerMap = new HashMap<>();
+                peerMap.put("ipAddress", peer.getIpAddress());
+                peerMap.put("port", peer.getPort());
+                peerMap.put("walletPublicKey", peer.getWalletPublicKey().toString());
+                peerMap.put("name", peer.walletName);
+                peersInfo.add(peerMap);
+            }
+            responseMap.put("peers", peersInfo);
+            
+            String response = new Gson().toJson(responseMap);
+            sendJsonResponse(exchange, response);
             }
         });
     
@@ -532,6 +552,7 @@ public class NodeServer {
     public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
             NodeServer node1 = new NodeServer("node1", 8080);
             node1.setWalletAmount(200);
+            node1.myWallet.name="DAVID";
             Blockchain.initialize();
             new Thread(() -> {
                 try {

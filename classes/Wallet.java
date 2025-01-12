@@ -7,12 +7,14 @@ public class Wallet {
     private PrivateKey privateKey;   // Clé privée
     private PublicKey publicKey;     // Clé publique
     private double balance;          // Solde du portefeuille
+    public String name;
 
     public Wallet(double balance) throws NoSuchAlgorithmException {
         KeyPair keyPair = SignatureUtil.generateKeyPair();
         this.privateKey = keyPair.getPrivate();
         this.publicKey = keyPair.getPublic();
         this.balance = balance; // Solde initial
+        this.name="";
     }
 
     // Créer une transaction

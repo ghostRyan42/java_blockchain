@@ -60,6 +60,7 @@ public class NodeClient {
 
                 Object receivedData = in.readObject();
                 NodeMainInfo serverInfo = (NodeMainInfo) receivedData;
+                serverInfo.setIpAddress(clientSocket.getInetAddress().getHostAddress());
                 log("Informations reçues du client : " + serverInfo);
                 serverInfo.setOut(out);
                 serverInfo.setIn(in);
@@ -90,13 +91,14 @@ public class NodeClient {
             receivedData = in.readObject();
             // if (receivedData instanceof NodeMainInfo) {
             NodeMainInfo serverInfo = (NodeMainInfo) receivedData;
+            serverInfo.setIpAddress(host);
             log("Informations reçues du serveur : " + serverInfo);
             serverInfo.setOut(out);
             serverInfo.setIn(in);
             peers.add(serverInfo);
             // }
 
-            NodeMainInfo myInfo = new NodeMainInfo("localhost", port, myWallet.getPublicKey());
+            NodeMainInfo myInfo = new NodeMainInfo("localhost", port, myWallet.getPublicKey(),myWallet.name);
             out.writeObject(myInfo);
             out.flush();
 
@@ -131,7 +133,7 @@ public class NodeClient {
             log("Transaction créée avec succès.");
             this.pendingTransactions.add(trans);
             broadcastTransaction(trans);
-            Thread.sleep((long) (500 + Math.random() * 1500));
+            // Thread.sleep((long) (500 + Math.random() * 1500));
             if (pendingTransactions.size() >= 3) {
                 mineNewBlock();
             }
@@ -220,27 +222,27 @@ public class NodeClient {
                     System.out.println(this.mainNode.nodeId + ": Transaction reçue - " + transaction);
                     if (!this.mainNode.pendingTransactions.contains(transaction)) {
                         this.mainNode.pendingTransactions.add(transaction);
-                        Thread.sleep((long) (500 + Math.random() * 1500));
-                        if(this.mainNode.pendingTransactions.size()==3){
-                            Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
-                            Block newBlock = new Block(Blockchain.blockchain.size(),lastBlock.getHash());
+                        // Thread.sleep((long) (500 + Math.random() * 1500));
+                        // if(this.mainNode.pendingTransactions.size()==3){
+                        //     Block lastBlock = Blockchain.blockchain.get(Blockchain.blockchain.size() - 1);
+                        //     Block newBlock = new Block(Blockchain.blockchain.size(),lastBlock.getHash());
                             
-                            // Ajouter les transactions en attente au nouveau bloc
-                            for (Transaction tx : mainNode.pendingTransactions) {
-                                newBlock.addTransaction(tx);
-                            }
-                            newBlock.calculateHash();
+                        //     // Ajouter les transactions en attente au nouveau bloc
+                        //     for (Transaction tx : mainNode.pendingTransactions) {
+                        //         newBlock.addTransaction(tx);
+                        //     }
+                        //     newBlock.calculateHash();
 
-                            // newBlock.mineBlock(4);
-                            if(Blockchain.addBlock(newBlock)){
-                                System.out.println(mainNode.nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
-                                mainNode.broadcastBlock(newBlock);
-                                mainNode.pendingTransactions.clear();
-                            }
+                        //     // newBlock.mineBlock(4);
+                        //     if(Blockchain.addBlock(newBlock)){
+                        //         System.out.println(mainNode.nodeId + ": Nouveau bloc miné - " + newBlock.getHash());
+                        //         mainNode.broadcastBlock(newBlock);
+                        //         mainNode.pendingTransactions.clear();
+                        //     }
 
-                        }else{
+                        // }else{
                             System.out.println(this.mainNode.nodeId + ": Transaction ajoutée au pool.");
-                        }
+                        // }
                     }
                 } else if (message instanceof Block) {
                     Block block = (Block) message;
@@ -267,7 +269,7 @@ public class NodeClient {
                     peerInfo.setOut(out);
                     System.out.println("Informations reçues du nœud : " + peerInfo.toString());
 
-                    NodeMainInfo myInfo = new NodeMainInfo("localhost", mainNode.port, mainNode.myWallet.getPublicKey());
+                    NodeMainInfo myInfo = new NodeMainInfo("localhost", mainNode.port, mainNode.myWallet.getPublicKey(),mainNode.myWallet.name);
                     out.writeObject(myInfo);
                     out.flush();
                     // Vous pouvez ajouter cette information dans la liste de vos pairs (peers)
@@ -437,14 +439,19 @@ public class NodeClient {
                         sb.append(line);
                     }
                     String[] params = sb.toString().split("&");
-                    int peerIndex = Integer.parseInt(params[0].split("=")[1]);
+                    String peerWalletKey = params[0].split("=")[1];
                     double amount = Double.parseDouble(params[1].split("=")[1]);
                     double fee = Double.parseDouble(params[2].split("=")[1]);
     
-                    createTransaction(peers.get(peerIndex), amount, fee);
+                    NodeMainInfo destNode = peers.stream()
+                        .filter(peer -> new Gson().toJson(peer.getWalletPublicKey().toString().replace("\n", "").trim()).equals(new Gson().toJson(peerWalletKey)))
+                        .findFirst()
+                        .orElseThrow(() -> new Exception("Peer not found"));
+                    createTransaction(destNode, amount, fee);
                     String response = "{\"message\": \"Transaction créée avec succès.\"}";
                     sendJsonResponse(exchange, response);
                 } catch (Exception e) {
+                    System.out.println(e.getMessage());
                     sendJsonError(exchange, 500, "Erreur lors de la création de la transaction.");
                 }
             }
@@ -483,8 +490,22 @@ public class NodeClient {
         // Route pour récupérer le nombre de pairs
         server.createContext("/node/peers", exchange -> {
             if ("GET".equals(exchange.getRequestMethod())) {
-                String response = String.format("{\"connectedPeers\": %d}", peers.size());
-                sendJsonResponse(exchange, response);
+            Map<String, Object> responseMap = new HashMap<>();
+            responseMap.put("connectedPeers", peers.size());
+            
+            List<Map<String, Object>> peersInfo = new ArrayList<>();
+            for (NodeMainInfo peer : peers) {
+                Map<String, Object> peerMap = new HashMap<>();
+                peerMap.put("ipAddress", peer.getIpAddress());
+                peerMap.put("port", peer.getPort());
+                peerMap.put("walletPublicKey", peer.getWalletPublicKey().toString());
+                peerMap.put("name", peer.walletName);
+                peersInfo.add(peerMap);
+            }
+            responseMap.put("peers", peersInfo);
+            
+            String response = new Gson().toJson(responseMap);
+            sendJsonResponse(exchange, response);
             }
         });
     
@@ -556,7 +577,8 @@ public class NodeClient {
     public static void main(String[] args) throws NoSuchAlgorithmException, IOException {
         // Créer le premier nœud (node1) et le démarrer dans un thread séparé
         NodeClient node1 = new NodeClient("node1", 8081, null);
-        node1.setWalletAmount(100);
+        node1.setWalletAmount(2000);
+        node1.myWallet.name="BINI";
         new Thread(() -> {
             try {
                 node1.start();
