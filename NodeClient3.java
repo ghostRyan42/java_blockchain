@@ -139,6 +139,7 @@ public class NodeClient3 {
             }
         } else {
             logWarning(nodeId + ": Échec de la création de la transaction.");
+            throw new Exception("fondsInsuffisant");
         }
     }
 
@@ -382,7 +383,7 @@ public class NodeClient3 {
     
         // Route principale pour servir le fichier HTML
         server.createContext("/", exchange -> {
-            File file = new File("index.html"); // Fichier HTML à servir
+            File file = new File("sharable_first.html"); // Fichier HTML à servir
             if (file.exists()) {
                 byte[] response = Files.readAllBytes(file.toPath());
                 exchange.sendResponseHeaders(200, response.length);
@@ -449,7 +450,11 @@ public class NodeClient3 {
                     sendJsonResponse(exchange, response);
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
-                    sendJsonError(exchange, 500, "Erreur lors de la création de la transaction.");
+                    if(e.getMessage().equals("fondsInsuffisant")){
+                        sendJsonError(exchange, 405, "Fonds insuffisants pour effectuer cette transaction.");
+                    }else{
+                        sendJsonError(exchange, 500, "Erreur lors de la création de la transaction.");
+                    }
                 }
             }
         });

@@ -1190,12 +1190,16 @@
         }
     
         function formatDate(timestamp) {
-            return new Date(timestamp).toLocaleString('fr-FR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+            const [datePart, timePart] = timestamp.split(' ');
+            const [day, month, year] = datePart.split('-').map(Number);
+            const [hour, minute, second] = timePart.split(':').map(Number);
+            const date = new Date(year, month - 1, day, hour, minute, second);
+            return date.toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
             });
         }
     
@@ -1312,7 +1316,11 @@
                     $('#transactionModal').hide();
                 },
                 error: function(xhr, status, error) {
-                    showNotification('Erreur lors de la transaction : ' + error, 'error');
+                    if(xhr.status == 405){
+                        showNotification('Solde insuffisant pour effectuer la transaction', 'error');
+                    }else{
+                        showNotification('Erreur lors de la transaction : ' + error, 'error');
+                    }
                 },
                 complete: function() {
                     hideLoading();

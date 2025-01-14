@@ -122,6 +122,7 @@ public class NodeServer {
             }
         } else {
             System.out.println(nodeId + ": Échec de la création de la transaction.");
+            throw new Exception("fondsInsuffisant");
         }
     }
 
@@ -408,7 +409,11 @@ public class NodeServer {
                     sendJsonResponse(exchange, response);
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
-                    sendJsonError(exchange, 500, "Erreur lors de la création de la transaction.");
+                    if(e.getMessage().equals("fondsInsuffisant")){
+                        sendJsonError(exchange, 405, "Fonds insuffisants pour effectuer cette transaction.");
+                    }else{
+                        sendJsonError(exchange, 500, "Erreur lors de la création de la transaction.");
+                    }
                 }
             }
         });
