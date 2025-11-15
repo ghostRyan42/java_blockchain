@@ -8,6 +8,7 @@ import java.security.PublicKey;
 public class NodeMainInfo implements Serializable {
 
     private String ipAddress; // L'adresse IP du nœud
+    public String walletName; // L'adresse IP du nœud
     private int port; // Le port sur lequel le nœud écoute
     private PublicKey walletPublicKey; // La clé publique du portefeuille
     public int nodeId;
@@ -17,9 +18,10 @@ public class NodeMainInfo implements Serializable {
     private transient ObjectInputStream inputStream;
 
     // Constructeur
-    public NodeMainInfo(String ipAddress, int port, PublicKey walletPublicKey) {
+    public NodeMainInfo(String ipAddress, int port, PublicKey walletPublicKey, String _walletName) {
         this.ipAddress = ipAddress;
         this.port = port;
+        walletName = _walletName;
         this.walletPublicKey = walletPublicKey;
         synchronized (NodeMainInfo.class) {
             compteur += 1;

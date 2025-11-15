@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Node Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        :root {
+            --gradient-1: linear-gradient(45deg, #00f5a0, #00d9f5);
+            --gradient-2: linear-gradient(45deg, #7928CA, #FF0080);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --error-color: #ff4444;
+            --success-color: #00ff88;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: #0a0b1e;
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .background {
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(0, 245, 160, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(121, 40, 202, 0.1) 0%, transparent 40%);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid var(--glass-border);
+            transition: transform 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .wallet-info {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .node-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--error-color);
+        }
+
+        .status-dot.connected {
+            background: var(--success-color);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            background: var(--gradient-1);
+            transition: all 0.3s ease;
+            opacity: 0.9;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn:hover:not(:disabled) {
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 500px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+        }
+
+        .blockchain-container {
+            margin-top: 2rem;
+        }
+
+        .blockchain-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .blockchain-content {
+            background: var(--glass-bg);
+            padding: 1.5rem;
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--glass-border);
+            border-top: 3px solid var(--success-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .status-message {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+
+        .status-message.success {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--success-color);
+        }
+
+        .status-message.error {
+            background: rgba(255, 68, 68, 0.2);
+            color: var(--error-color);
+        }
+        .main{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100%;
+            width: 100%;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .wallet-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid var(--glass-border);
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .wallet-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--gradient-1);
+        }
+
+        .wallet-balance {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .currency {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .transactions-section {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 1.5rem;
+            border: 1px solid var(--glass-border);
+            height: calc(50vh - 2rem);
+            overflow-y: auto;
+        }
+
+        .transactions-section h3 {
+            color: white;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .transaction-item {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .transaction-item:hover {
+            transform: translateX(5px);
+        }
+
+        .transaction-item.pending {
+            border-left-color: #ffd700;
+        }
+
+        .transaction-item.completed {
+            border-left-color: var(--success-color);
+        }
+
+        .transaction-amount {
+            font-weight: bold;
+            float: right;
+        }
+
+        .transaction-amount.positive {
+            color: var(--success-color);
+        }
+
+        .transaction-amount.negative {
+            color: var(--error-color);
+        }
+
+        .transaction-date {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 0.5rem;
+        }
+
+        .node-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 0.5rem;
+        }
+
+        .scroll-container {
+            max-height: 300px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scroll-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .transaction-status {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+
+        .status-pending {
+            background: rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+        }
+
+        .status-completed {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--success-color);
+        }
+
+        .blockchain-info {
+            position: relative;
+            padding-top: 1rem;
+            width: 100%;
+        }
+
+        .block-count {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+
+        .network-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .peers-count {
+            margin-left: auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        }
+
+        .notification {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px 20px;
+            color: white;
+            transform: translateX(120%);
+            animation: slideIn 0.5s forwards;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 4px solid;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .notification.success {
+            border-color: var(--success-color);
+        }
+
+        .notification.error {
+            border-color: var(--error-color);
+        }
+
+        .notification::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .notification.success::before {
+            background: var(--success-color);
+            box-shadow: 0 0 12px var(--success-color);
+        }
+
+        .notification.error::before {
+            background: var(--error-color);
+            box-shadow: 0 0 12px var(--error-color);
+        }
+
+        @keyframes slideIn {
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+
+        /* Nouveau loader futuriste */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 11, 30, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 9998;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .loader {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .loader-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            border-top-color: #00f5a0;
+            animation: spin 1s linear infinite;
+        }
+
+        .loader-ring:nth-child(2) {
+            width: 80%;
+            height: 80%;
+            top: 10%;
+            left: 10%;
+            border-top-color: #00d9f5;
+            animation-duration: 0.8s;
+            animation-direction: reverse;
+        }
+
+        .loader-ring:nth-child(3) {
+            width: 60%;
+            height: 60%;
+            top: 20%;
+            left: 20%;
+            border-top-color: #7928CA;
+            animation-duration: 0.6s;
+        }
+
+        .loader-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            color: white;
+            white-space: nowrap;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease infinite;
+        }
+
+        .operation-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 50px;
+            padding: 5px 10px;
+            width: 500px;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            min-width: 200px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Effet Shimmer */
+        .operation-status.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.1),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        .operation-status.active {
+            border-color: #00f5a0;
+            animation: pulse-border 2s infinite;
+        }
+
+        .operation-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+            transition: background-color 0.3s ease;
+        }
+
+        .operation-indicator.active {
+            background: #00f5a0;
+            box-shadow: 0 0 10px #00f5a0;
+        }
+
+        /* Circular Loading */
+        .circular-loading {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid #00f5a0;
+            border-radius: 50%;
+            margin-left: 5px;
+            display: none;
+            animation: spin 1s linear infinite;
+        }
+
+        .circular-loading.active {
+            display: inline-block;
+        }
+
+        .operation-text {
+            color: white;
+            font-size: 14px;
+        }
+
+        /* Animations */
+        @keyframes shimmer {
+            0% { left: -10%; }
+            100% { left: 10%; }
+        }
+
+        @keyframes pulse-border {
+            0% { 
+                border-color: rgba(0, 245, 160, 0.6);
+                box-shadow: 0 0 10px rgba(0, 245, 160, 0.2);
+            }
+            50% { 
+                border-color: rgba(0, 245, 160, 1);
+                box-shadow: 0 0 20px rgba(0, 245, 160, 0.4);
+            }
+            100% { 
+                border-color: rgba(0, 245, 160, 0.6);
+                box-shadow: 0 0 10px rgba(0, 245, 160, 0.2);
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .peer-select {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .peer-select option {
+            background: #0a0b1e;
+            color: white;
+            padding: 10px;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="notification-container" id="notificationContainer"></div>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader">
+            <div class="loader-ring"></div>
+            <div class="loader-ring"></div>
+            <div class="loader-ring"></div>
+            <div class="loader-text pulse">Traitement en cours...</div>
+        </div>
+    </div>
+    <div class="background"></div>
+    <div class="container">
+        <div class="main">
+            <div class="dashboard">
+                <div class="left-panel">
+                    <div class="wallet-card">
+                        <h2>Portefeuille FCFA</h2>
+                        <div class="wallet-balance" id="walletBalance">0.00</div>
+                        <div class="currency">FCFA</div>
+                        
+                        <div class="network-status">
+                            <div class="status-dot" id="connectionStatus"></div>
+                            <span id="nodeInfo">Non connecté</span>
+                            <span class="peers-count" id="peersCount">0 pairs</span>
+                        </div>
+    
+                        <div class="node-stats">
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalTransactions">0</div>
+                                <div class="stat-label">Transactions</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="blockCount">0</div>
+                                <div class="stat-label">Blocs</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="pendingCount">0</div>
+                                <div class="stat-label">En attente</div>
+                            </div>
+                        </div>
+    
+                        <div class="action-buttons">
+                            <button class="btn" data-modal="connectModal" id="connectBtn">Se Connecter au réseau</button>
+                            <button class="btn" data-modal="transactionModal" id="transactionBtn" disabled>Nouvelle Transaction</button>
+                        </div>
+                    </div>
+    
+                </div>
+    
+                <div class="right-panel">
+                    <div class="transactions-section">
+                        <h3>Transactions en attente</h3>
+                        <div class="scroll-container" id="pendingTransactions">
+                            <!-- Les transactions en attente seront insérées ici dynamiquement -->
+                        </div>
+                    </div>
+    
+                    <div class="transactions-section">
+                        <h3>Historique des transactions</h3>
+                        <div class="scroll-container" id="transactionHistory">
+                            <!-- L'historique des transactions sera inséré ici dynamiquement -->
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            <div class="blockchain-info">
+                <h2 class="blockchain-title">Blockchain</h2>
+                <span class="block-count" id="totalBlocks">0 blocs</span>
+                <div class="blockchain-content scroll-container" id="blockchainData">
+                    <p>En attente de connexion...</p>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    <div class="operation-status" id="operationStatus">
+        <div class="operation-indicator" id="operationIndicator"></div>
+        <div class="operation-text" id="operationText">En attente...</div>
+        <div class="circular-loading" id="operationLoader"></div>
+    </div>
+
+    <!-- Modal de connexion -->
+    <div class="modal" id="connectModal">
+        <div class="modal-content">
+            <button class="close-modal" type="button">&times;</button>
+            <h2>Se connecter au réseau</h2>
+            <form id="connectForm">
+                <div class="form-group">
+                    <label>Adresse hôte</label>
+                    <input type="text" id="peerHost" value="localhost" required>
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" id="peerPort" required>
+                </div>
+                <button type="submit" class="btn">Se connecter</button>
+            </form>
+            <div class="status-message" id="connectStatus"></div>
+        </div>
+    </div>
+
+    <!-- Modal de transaction -->
+    <div class="modal" id="transactionModal">
+        <div class="modal-content">
+            <button class="close-modal" type="button">&times;</button>
+            <h2>Nouvelle Transaction</h2>
+            <form id="transactionForm">
+                <div class="form-group">
+                    <label>Sélectionner un pair</label>
+                    <div class="select-wrapper">
+                        <select class="peer-select" id="peerSelect" required>
+                            <option value="">Sélectionner un pair...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Montant</label>
+                    <input type="number" id="amount" step="0.01" required>
+                </div>
+                <button type="submit" class="btn">Envoyer</button>
+            </form>
+            <div class="status-message" id="transactionStatus"></div>
+        </div>
+    </div>
+
+    <div class="loading" id="loadingSpinner"></div>
+
+    <script>
+        let isConnected = false;
+        let lastState = {
+            peerCount: 0,
+            blockCount: 0,
+            pendingTransactionsCount: 0,
+            lastTransactionId: null,
+            balance: 0
+        };
+
+        function updateOperationStatus(isActive, message) {
+            const status = $('#operationStatus');
+            const indicator = $('#operationIndicator');
+            const text = $('#operationText');
+            const loader = $('#operationLoader');
+
+            if (isActive) {
+                status.addClass('active');
+                indicator.addClass('active');
+                loader.addClass('active');
+            } else {
+                status.removeClass('active');
+                indicator.removeClass('active');
+                loader.removeClass('active');
+            }
+
+            text.text(message);
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = $(`
+                <div class="notification ${type}">
+                    ${message}
+                </div>
+            `);
+            
+            $('#notificationContainer').append(notification);
+            
+            // Supprime la notification après 5 secondes
+            setTimeout(() => {
+                notification.css('animation', 'slideOut 0.5s forwards');
+                setTimeout(() => notification.remove(), 500);
+            }, 5000);
+        }
+
+        // Fonctions améliorées pour le loader
+        function showLoading(message = 'Traitement en cours...') {
+            $('.loader-text').text(message);
+            $('#loadingOverlay').css('display', 'flex');
+            $('body').css('overflow', 'hidden'); // Empêche le défilement pendant le chargement
+        }
+
+        function hideLoading() {
+            $('#loadingOverlay').fadeOut(300, function() {
+                $('body').css('overflow', '');
+            });
+        }
+    
+        // function showLoading() {
+        //     $('#loadingSpinner').show();
+        // }
+    
+        // function hideLoading() {
+        //     $('#loadingSpinner').hide();
+        // }
+    
+        function showStatus(elementId, message, type) {
+            const statusElement = $(`#${elementId}`);
+            statusElement.removeClass('success error')
+                        .addClass(type)
+                        .text(message)
+                        .show();
+            setTimeout(() => statusElement.hide(), 3000);
+        }
+    
+        function safeParseJSON(data) {
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                console.error('Erreur parsing JSON:', e);
+                return null;
+            }
+        }
+    
+        // Fonction principale de polling
+        function pollChanges() {
+
+            checkPeers()
+
+            if (isConnected) {
+            Promise.all([
+                checkNodeInfo(),
+                checkBlockchain(),
+                checkPendingTransactions()
+            ]).catch(error => {
+                console.error('Erreur de polling:', error);
+            });
+        } else {
+            // Même si on n'est pas connecté, on vérifie quand même les infos de base du nœud
+            checkNodeInfo();
+        }
+        }
+    
+        function checkNodeInfo() {
+        return $.ajax({
+            url: '/node/info',
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                console.log(data)
+                if (typeof data === 'string') {
+                    data = safeParseJSON(data);
+                }
+                if (data && data.balance !== lastState.balance) {
+                    $('#walletBalance').text(`${data.balance.toFixed(2)} Fcfa`);
+                    // $('#nodeInfo').text(`Node: ${data.nodeId} | Port: ${data.port}`);
+                    lastState.balance = data.balance;
+                }
+            }
+        });
+    }
+
+    function checkPeers() {
+        return $.ajax({
+            url: '/node/peers',
+            method: 'GET',
+            success: function(data) {
+                console.log(data)
+                const peers = typeof data === 'string' ? safeParseJSON(data) : data;
+                if (peers) {
+                    const currentPeerCount = peers.connectedPeers;
+                    if (currentPeerCount !== lastState.peerCount) {
+                        updatePeerSelector(peers.peers);
+                        $('#peersCount').text(`${currentPeerCount} pairs`);
+                        $('#connectionStatus').toggleClass('connected', currentPeerCount > 0);
+                        if(currentPeerCount!=0){
+                            $('#nodeInfo').text(`Connecté`);
+                        }else{
+                            $('#nodeInfo').text(`Non Connecté`);
+                        }
+                        if(currentPeerCount < lastState.peerCount){
+                            showNotification('Noeud déconnecté du réseau');
+                        }else if(currentPeerCount > lastState.peerCount){
+                            showNotification('Nouveau noeud connecté au réseau');
+                        }
+                        lastState.peerCount = currentPeerCount;
+                        
+                        // Activer le bouton de transaction si des pairs sont connectés
+                        $('#transactionBtn').prop('disabled', currentPeerCount === 0);
+                        $('#connectBtn').prop('disabled', currentPeerCount !== 0);
+                        
+                        // Mettre à jour le statut de connexion global si des pairs sont connectés
+                        if (currentPeerCount > 0 && !isConnected) {
+                            isConnected = true;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updatePeerSelector(peers) {
+            const select = $('#peerSelect');
+            select.find('option:not(:first)').remove();
+            
+            peers.forEach((peer, index) => {
+                const option = new Option(
+                    `Pair ${index + 1} - ${peer.name || 'Sans nom'} - ${peer.walletPublicKey.substring(0, 6)}...`,
+                    peer.walletPublicKey
+                );
+                select.append(option);
+            });
+        }
+
+    
+        function checkBlockchain() {
+            return $.ajax({
+                url: '/blockchain',
+                method: 'GET',
+                success: function(data) {
+                console.log(data)
+                console.log("blockchain",data)
+                    try {
+                        const blockchain = typeof data === 'string' ? safeParseJSON(data) : data;
+                        if (blockchain) {
+                            const currentBlockCount = blockchain.length;
+                            if (currentBlockCount !== lastState.blockCount) {
+                                // $('#blockchainData').html(`<pre>${JSON.stringify(blockchain, null, 2)}</pre>`);
+                                renderBlockchain(blockchain);
+                                updateTransactionHistory(blockchain);
+                                lastState.blockCount = currentBlockCount;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Erreur lors du traitement de la blockchain:', e);
+                    }
+                }
+            });
+        }
+
+        function renderBlockchain(blockchain) {
+            const container = $('#blockchainData');
+            container.empty();
+            
+            // Style CSS pour la visualisation
+            const style = `
+                <style>
+                    .block-container {
+                        display: flex;
+                        align-items: center;
+                        gap: 20px;
+                        padding: 20px;
+                        overflow-x: auto;
+                    }
+                    .block {
+                        background: rgba(255, 255, 255, 0.1);
+                        border: 2px solid rgba(255, 255, 255, 0.2);
+                        border-radius: 10px;
+                        padding: 15px;
+                        min-width: 200px;
+                        position: relative;
+                        transition: transform 0.3s;
+                    }
+                    .block:hover {
+                        transform: translateY(-5px);
+                    }
+                    .block::after {
+                        content: "→";
+                        position: absolute;
+                        right: -25px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        color: rgba(255, 255, 255, 0.5);
+                        font-size: 24px;
+                        z-index: 1;
+                    }
+                    .block:last-child::after {
+                        display: none;
+                    }
+                    .block-index {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #00f5a0;
+                        margin-bottom: 10px;
+                    }
+                    .block-hash {
+                        font-family: monospace;
+                        color: #00d9f5;
+                        font-size: 12px;
+                        word-break: break-all;
+                        margin-bottom: 10px;
+                    }
+                    .block-info {
+                        display: flex;
+                        justify-content: space-between;
+                        color: rgba(255, 255, 255, 0.7);
+                        font-size: 12px;
+                    }
+                    .transactions-count {
+                        background: rgba(0, 245, 160, 0.2);
+                        color: #00f5a0;
+                        padding: 3px 8px;
+                        border-radius: 12px;
+                        font-size: 12px;
+                    }
+                </style>
+            `;
+
+            // Création du conteneur de blocs
+            const blockContainer = $('<div class="block-container"></div>');
+
+            // Création des blocs
+            blockchain.forEach(block => {
+                const date = new Date(block.timestamp).toLocaleString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const blockElement = $(`
+                    <div class="block">
+                        <div class="block-index">Bloc #${block.index}</div>
+                        <div class="block-hash" title="${block.hash}">
+                            ${block.hash.substring(0, 8)}...${block.hash.substring(block.hash.length - 8)}
+                        </div>
+                        <div class="transactions-count">
+                            ${block.transactions.length} transaction${block.transactions.length !== 1 ? 's' : ''}
+                        </div>
+                        <div class="block-info">
+                            <span>Nonce: ${block.nonce}</span>
+                            <span>${date}</span>
+                        </div>
+                    </div>
+                `);
+
+                blockContainer.append(blockElement);
+            });
+
+            // Ajout du style et du conteneur à la page
+            container.append(style, blockContainer);
+        }
+    
+        function checkPendingTransactions() {
+            return $.ajax({
+                url: '/node/pending-transactions',
+                method: 'GET',
+                success: function(data) {
+                    console.log('pendingtrans',data)
+                    const pending = typeof data === 'string' ? safeParseJSON(data) : data;
+                    if (pending) {
+                        const currentPendingCount = pending.length;
+                        const lastTransactionId = pending[0]?.id;
+
+                        if (currentPendingCount >= 3) {
+                            updateOperationStatus(true, 'Minage d\'un bloc en cours...');
+                        } else if (currentPendingCount > 0) {
+                            updateOperationStatus(true, `Minage de block en attente de transactions (${currentPendingCount}/3)...`);
+                        } else {
+                            updateOperationStatus(false, 'En attente...');
+                        }
+    
+                        if (currentPendingCount !== lastState.pendingTransactionsCount || 
+                            lastTransactionId !== lastState.lastTransactionId) {
+                            updatePendingTransactions(pending);
+                            lastState.pendingTransactionsCount = currentPendingCount;
+                            lastState.lastTransactionId = lastTransactionId;
+                        }
+                    }
+                },
+            });
+        }
+    
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('fr-FR', {
+                style: 'currency',
+                currency: 'XOF'
+            }).format(amount);
+        }
+    
+        function formatDate(timestamp) {
+            const [datePart, timePart] = timestamp.split(' ');
+            const [day, month, year] = datePart.split('-').map(Number);
+            const [hour, minute, second] = timePart.split(':').map(Number);
+            const date = new Date(year, month - 1, day, hour, minute, second);
+            return date.toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+            });
+        }
+    
+        function updatePendingTransactions(transactions) {
+            const container = $('#pendingTransactions');
+            container.empty();
+            
+            transactions.forEach(tx => {
+                container.append(`
+                    <div class="transaction-item pending">
+                        <span class="transaction-amount ${tx.amount > 0 ? 'positive' : 'negative'}">
+                            ${formatAmount(tx.amount)}
+                        </span>
+                        <div>Transaction #${tx.id}</div>
+                        <div class="transaction-date">${formatDate(tx.timestamp)}</div>
+                        <span class="transaction-status status-pending">En attente</span>
+                    </div>
+                `);
+            });
+    
+            $('#pendingCount').text(transactions.length);
+        }
+    
+        function updateTransactionHistory(blocks) {
+            const container = $('#transactionHistory');
+            container.empty();
+            
+            let totalTransactions = 0;
+    
+            blocks.forEach(block => {
+                block.transactions.forEach(tx => {
+                    totalTransactions++;
+                    container.append(`
+                        <div class="transaction-item completed">
+                            <span class="transaction-amount ${tx.amount > 0 ? 'positive' : 'negative'}">
+                                ${formatAmount(tx.amount)}
+                            </span>
+                            <div>Block #${block.index} - Transaction #${tx.id}</div>
+                            <div class="transaction-date">${formatDate(tx.timestamp)}</div>
+                            <span class="transaction-status status-completed">Confirmée</span>
+                        </div>
+                    `);
+                });
+            });
+    
+            $('#totalTransactions').text(totalTransactions);
+            $('#blockCount').text(blocks.length);
+            $('#totalBlocks').text(`${blocks.length} blocs`);
+        }
+    
+        // Gestion des modales
+        $('[data-modal]').click(function() {
+            const modalId = $(this).data('modal');
+            $(`#${modalId}`).show();
+        });
+    
+        $('.close-modal').click(function() {
+            $(this).closest('.modal').hide();
+        });
+    
+        // Connexion au pair
+        $('#connectForm').on('submit', function(e) {
+            e.preventDefault();
+            showLoading('Connexion au réseau...');
+    
+            const host = $('#peerHost').val();
+            const port = $('#peerPort').val();
+    
+            $.ajax({
+                url: '/node/connect',
+                method: 'POST',
+                data: `host=${host}&port=${port}`,
+                success: function(response) {
+                    isConnected = true;
+                    $('#connectionStatus').addClass('connected');
+                    $('#transactionBtn').prop('disabled', false);
+                    showNotification('Connexion établie avec succès');
+                    pollChanges(); // Première mise à jour immédiate
+                    $('#connectModal').hide();
+                },
+                error: function(xhr, status, error) {
+                    console.error(error);
+                    showNotification('Erreur de connexion : ' + error, 'error');
+                },
+                complete: function() {
+                    hideLoading();
+                }
+            });
+        });
+    
+        // Création de transaction
+        $('#transactionForm').on('submit', function(e) {
+            e.preventDefault();
+            if (!isConnected) {
+                showNotification('Veuillez vous connecter d\'abord', 'error');
+                return;
+            }
+    
+            showLoading('Transaction en cours de traitement...');
+            updateOperationStatus(true, 'Transaction en cours...');
+            const data = {
+                peerWalletKey: $('#peerSelect').val(),
+                amount: $('#amount').val(),
+                fee: $('#amount').val()*0.1
+            };
+    
+            $.ajax({
+                url: '/transaction/create',
+                method: 'POST',
+                data: `peerWalletKey=${data.peerWalletKey}&amount=${data.amount}&fee=${data.fee}`,
+                success: function(response) {
+                    showNotification('Transaction effectuée avec succès');
+                    pollChanges(); // Mise à jour immédiate après transaction
+                    $('#transactionModal').hide();
+                },
+                error: function(xhr, status, error) {
+                    if(xhr.status == 405){
+                        showNotification('Solde insuffisant pour effectuer la transaction', 'error');
+                    }else{
+                        showNotification('Erreur lors de la transaction : ' + error, 'error');
+                    }
+                },
+                complete: function() {
+                    hideLoading();
+                    updateOperationStatus(false, 'En attente...');
+                }
+            });
+        });
+    
+        // Fermeture des modales en cliquant à l'extérieur
+        $(window).click(function(e) {
+            if ($(e.target).hasClass('modal')) {
+                $('.modal').hide();
+            }
+        });
+    
+        setInterval(checkPeers, 3000);      // Vérification plus fréquente des pairs
+        setInterval(pollChanges, 5000);     // Autres vérifications toutes les 5 secondes
+
+        // Initialisation
+        pollChanges();
+    </script>
+</body>
+</html>

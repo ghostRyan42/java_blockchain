@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Blockchain Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+         :root {
+            --primary-color: #6d28d9;
+            --secondary-color: #7c3aed;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --background-color: #1e1e2e;
+            --card-background: #27293d;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border-color: #2d3748;
+            --hover-color: #312e81;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--background-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(109, 40, 217, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 20%);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--card-background);
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+        }
+
+        .network-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--error-color);
+            box-shadow: 0 0 10px var(--error-color);
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.connected {
+            background: var(--success-color);
+            box-shadow: 0 0 10px var(--success-color);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-background);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-shadow: 0 0 20px rgba(109, 40, 217, 0.3);
+        }
+
+        .block-item {
+            background: var(--card-background);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .block-item:hover {
+            transform: translateX(5px);
+        }
+
+        .block-number {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            box-shadow: 0 0 15px rgba(109, 40, 217, 0.3);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(109, 40, 217, 0.3);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4);
+        }
+
+        .transactions-panel {
+            background: var(--card-background);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .transaction-item {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .transaction-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .modal-content {
+            background: var(--card-background);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        input, select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(109, 40, 217, 0.2);
+        }
+
+        .notification {
+            background: var(--card-background);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .blockchain-view {
+            background: var(--card-background);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            height: 400px;
+            overflow-y: auto;
+        }
+
+        .block-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .block-item {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--background-color);
+            border-radius: 0.5rem;
+            position: relative;
+        }
+
+        .block-number {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .block-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .block-hash {
+            font-family: monospace;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .transactions-panel {
+            background: var(--card-background);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-top: 1rem;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            background: var(--primary-color);
+            color: white;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--secondary-color);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card {
+            background: var(--card-background);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 500px;
+            background: var(--card-background);
+            border-radius: 1rem;
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--background-color);
+            color: var(--text-primary);
+        }
+
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background: var(--card-background);
+            color: var(--text-primary);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            min-width: 300px;
+            transform: translateX(120%);
+            animation: slideIn 0.3s forwards;
+        }
+
+        @keyframes slideIn {
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        /* Loading styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--background-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .sidebar{
+            display: flex;
+            width: 100%;
+            gap: 1rem;
+            margin-bottom: 20px;
+        }
+        .transactions-panel:nth-of-type(2){
+            width: 60%;
+            height: 300px;
+        }
+        .transactions-panel:nth-of-type(1){
+            width: 40%;
+            height: 300px;
+        }
+        #transactionHistory{
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <h1>Blockchain Explorer</h1>
+            <div class="network-status">
+                <div class="status-indicator" id="connectionStatus"></div>
+                <span id="nodeInfo">Non connecté</span>
+                <span id="peersCount">(0 pairs)</span>
+            </div>
+            <div>
+                <button class="btn" id="connectBtn" data-modal="connectModal">Se connecter</button>
+                <button class="btn" id="transactionBtn" data-modal="transactionModal" disabled>Nouvelle transaction</button>
+            </div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTransactions">0</div>
+                <div class="stat-label">Transactions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="blockCount">0</div>
+                <div class="stat-label">Blocs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">En attente</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="walletBalance">0.00</div>
+                <div class="stat-label">FCFA</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <aside class="sidebar">
+                <div class="transactions-panel">
+                    <h3>Transactions en attente</h3>
+                    <div id="pendingTransactions"></div>
+                </div>
+                <div class="transactions-panel">
+                    <h3 style="border-bottom: 1px solid wheat;">Historique des transactions</h3>
+                    <div id="transactionHistory"></div>
+                </div>
+            </aside>
+
+            <main class="blockchain-view">
+                <h2>Blockchain</h2>
+                <div id="blockchainData" class="block-timeline"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="connectModal">
+        <div class="modal-content">
+            <h2>Se connecter au réseau</h2>
+            <form id="connectForm">
+                <div class="form-group">
+                    <label>Adresse hôte</label>
+                    <input type="text" id="peerHost" value="localhost" required>
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" id="peerPort" required>
+                </div>
+                <button type="submit" class="btn">Se connecter</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="transactionModal">
+        <div class="modal-content">
+            <h2>Nouvelle Transaction</h2>
+            <form id="transactionForm">
+                <div class="form-group">
+                    <label>Sélectionner un pair</label>
+                    <select id="peerSelect" required>
+                        <option value="">Sélectionner un pair...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Montant</label>
+                    <input type="number" id="amount" step="0.01" required>
+                </div>
+                <button type="submit" class="btn">Envoyer</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let isConnected = false;
+        let lastState = {
+            peerCount: 0,
+            blockCount: 0,
+            pendingTransactionsCount: 0,
+            lastTransactionId: null,
+            balance: 0
+        };
+
+        // Réutilisation des fonctions originales avec adaptations pour le nouveau design
+        function showNotification(message, type = 'success') {
+            const notification = $(`
+                <div class="notification" style="border-left: 4px solid ${type === 'success' ? 'var(--success-color)' : 'var(--error-color)'}">
+                    ${message}
+                </div>
+            `);
+            
+            $('body').append(notification);
+            
+            setTimeout(() => {
+                notification.css('transform', 'translateX(120%)');
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+
+        function showLoading() {
+            $('.loading-overlay').css('display', 'flex');
+        }
+
+        function hideLoading() {
+            $('.loading-overlay').hide();
+        }
+
+        function pollChanges() {
+            checkPeers();
+            if (isConnected) {
+                Promise.all([
+                    checkNodeInfo(),
+                    checkBlockchain(),
+                    checkPendingTransactions()
+                ]).catch(error => {
+                    console.error('Erreur de polling:', error);
+                });
+            } else {
+                checkNodeInfo();
+            }
+        }
+
+        function checkNodeInfo() {
+            return $.ajax({
+                url: '/node/info',
+                method: 'GET',
+                success: function(data) {
+                    const info = typeof data === 'string' ? JSON.parse(data) : data;
+                    if (info && info.balance !== lastState.balance) {
+                        $('#walletBalance').text(info.balance.toFixed(2));
+                        lastState.balance = info.balance;
+                    }
+                }
+            });
+        }
+
+        function checkPeers() {
+            return $.ajax({
+                url: '/node/peers',
+                method: 'GET',
+                success: function(data) {
+                    const peers = typeof data === 'string' ? JSON.parse(data) : data;
+                    if (peers) {
+                        const currentPeerCount = peers.connectedPeers;
+                        if (currentPeerCount !== lastState.peerCount) {
+                            updatePeerSelector(peers.peers);
+                            $('#peersCount').text(`(${currentPeerCount} pairs)`);
+                            $('#connectionStatus').toggleClass('connected', currentPeerCount > 0);
+                            if(currentPeerCount!=0){
+                                $('#nodeInfo').text(`Connecté`);
+                            }else{
+                                $('#nodeInfo').text(`Non Connecté`);
+                            }
+                            if(currentPeerCount < lastState.peerCount) {
+                                showNotification('Nœud déconnecté du réseau', 'error');
+                            } else if(currentPeerCount > lastState.peerCount) {
+                                showNotification('Nouveau nœud connecté au réseau', 'success');
+                            }
+                            lastState.peerCount = currentPeerCount;
+                            $('#transactionBtn').prop('disabled', currentPeerCount === 0);
+                            $('#connectBtn').prop('disabled', currentPeerCount !== 0);
+                            isConnected = currentPeerCount > 0;
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePeerSelector(peers) {
+            const select = $('#peerSelect');
+            select.find('option:not(:first)').remove();
+            peers.forEach((peer, index) => {
+                select.append(new Option(
+                    `Pair ${index + 1} - ${peer.name || 'Sans nom'} - ${peer.walletPublicKey.substring(0, 6)}...`,
+                    peer.walletPublicKey
+                ));
+            });
+        }
+
+        function renderBlockchain(blockchain) {
+            const container = $('#blockchainData');
+            container.empty();
+
+            blockchain.reverse().forEach(block => {
+                const date = new Date(block.timestamp).toLocaleString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const blockElement = $(`
+                    <div class="block-item">
+                        <div class="block-number">${block.index}</div>
+                        <div class="block-content">
+                            <div class="block-hash" title="${block.hash}">
+                                ${block.hash.substring(0, 16)}...
+                            </div>
+                            <div class="block-details">
+                                <span>${block.transactions.length} transaction(s)</span>
+                                <span>Nonce: ${block.nonce}</span>
+                                <span>${date}</span>
+                            </div>
+                            <div class="block-transactions">
+                                ${block.transactions.map(tx => `
+                                    <div class="transaction-preview">
+                                        ID: ${tx.id} | Montant: ${formatAmount(tx.amount)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `);
+
+                container.append(blockElement);
+            });
+        }
+
+        function checkBlockchain() {
+            return $.ajax({
+                url: '/blockchain',
+                method: 'GET',
+                success: function(data) {
+                    const blockchain = typeof data === 'string' ? JSON.parse(data) : data;
+                    if (blockchain) {
+                        const currentBlockCount = blockchain.length;
+                        if (currentBlockCount !== lastState.blockCount) {
+                            renderBlockchain(blockchain);
+                            updateTransactionHistory(blockchain);
+                            lastState.blockCount = currentBlockCount;
+                        }
+                    }
+                }
+            });
+        }
+
+        function checkPendingTransactions() {
+            return $.ajax({
+                url: '/node/pending-transactions',
+                method: 'GET',
+                success: function(data) {
+                    const pending = typeof data === 'string' ? JSON.parse(data) : data;
+                    if (pending) {
+                        const currentPendingCount = pending.length;
+                        const lastTransactionId = pending[0]?.id;
+
+                        if (currentPendingCount !== lastState.pendingTransactionsCount || 
+                            lastTransactionId !== lastState.lastTransactionId) {
+                            updatePendingTransactions(pending);
+                            lastState.pendingTransactionsCount = currentPendingCount;
+                            lastState.lastTransactionId = lastTransactionId;
+                        }
+                    }
+                }
+            });
+        }
+
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('fr-FR', {
+                style: 'currency',
+                currency: 'XOF'
+            }).format(amount);
+        }
+
+        function formatDate(timestamp) {
+            const [datePart, timePart] = timestamp.split(' ');
+            const [day, month, year] = datePart.split('-').map(Number);
+            const [hour, minute, second] = timePart.split(':').map(Number);
+            const date = new Date(year, month - 1, day, hour, minute, second);
+            return date.toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+            });
+        }
+
+        function updatePendingTransactions(transactions) {
+            const container = $('#pendingTransactions');
+            container.empty();
+            
+            transactions.forEach(tx => {
+                container.append(`
+                    <div class="transaction-item">
+                        <div>
+                            <div>Transaction #${tx.id}</div>
+                            <div class="transaction-date">${formatDate(tx.timestamp)}</div>
+                        </div>
+                        <div class="transaction-amount ${tx.amount > 0 ? 'positive' : 'negative'}">
+                            ${formatAmount(tx.amount)}
+                        </div>
+                    </div>
+                `);
+            });
+            
+            $('#pendingCount').text(transactions.length);
+        }
+
+        function updateTransactionHistory(blocks) {
+            const container = $('#transactionHistory');
+            container.empty();
+            
+            let totalTransactions = 0;
+            
+            blocks.forEach(block => {
+                block.transactions.forEach(tx => {
+                    totalTransactions++;
+                    container.append(`
+                        <div class="transaction-item">
+                            <div>
+                                <div>Block #${block.index} - Transaction #${tx.id}</div>
+                                <div class="transaction-date">${formatDate(tx.timestamp)}</div>
+                            </div>
+                            <div class="transaction-amount ${tx.amount > 0 ? 'positive' : 'negative'}">
+                                ${formatAmount(tx.amount)}
+                            </div>
+                        </div>
+                    `);
+                });
+            });
+            
+            $('#totalTransactions').text(totalTransactions);
+            $('#blockCount').text(blocks.length);
+        }
+
+        // Event Handlers
+        $('[data-modal]').click(function() {
+            const modalId = $(this).data('modal');
+            $(`#${modalId}`).show();
+        });
+
+        $('.modal').click(function(e) {
+            if ($(e.target).hasClass('modal')) {
+                $(this).hide();
+            }
+        });
+
+        $('#connectForm').on('submit', function(e) {
+            e.preventDefault();
+            showLoading();
+
+            const host = $('#peerHost').val();
+            const port = $('#peerPort').val();
+
+            $.ajax({
+                url: '/node/connect',
+                method: 'POST',
+                data: `host=${host}&port=${port}`,
+                success: function(response) {
+                    isConnected = true;
+                    showNotification('Connexion établie avec succès');
+                    $('#connectModal').hide();
+                    pollChanges();
+                },
+                error: function(xhr, status, error) {
+                    showNotification('Erreur de connexion : ' + error, 'error');
+                },
+                complete: hideLoading
+            });
+        });
+
+        $('#transactionForm').on('submit', function(e) {
+            e.preventDefault();
+            if (!isConnected) {
+                showNotification('Veuillez vous connecter d\'abord', 'error');
+                return;
+            }
+
+            showLoading();
+            const data = {
+                peerWalletKey: $('#peerSelect').val(),
+                amount: $('#amount').val(),
+                fee: $('#amount').val() * 0.1
+            };
+
+            $.ajax({
+                url: '/transaction/create',
+                method: 'POST',
+                data: `peerWalletKey=${data.peerWalletKey}&amount=${data.amount}&fee=${data.fee}`,
+                success: function(response) {
+                    showNotification('Transaction effectuée avec succès');
+                    $('#transactionModal').hide();
+                    pollChanges();
+                },
+                error: function(xhr, status, error) {
+                    const message = xhr.status === 405 
+                        ? 'Solde insuffisant pour effectuer la transaction'
+                        : 'Erreur lors de la transaction : ' + error;
+                    showNotification(message, 'error');
+                },
+                complete: hideLoading
+            });
+        });
+
+        // Initialize polling
+        setInterval(checkPeers, 3000);
+        setInterval(pollChanges, 5000);
+        pollChanges();
+    </script>
+</body>
+</html>
